@@ -108,7 +108,6 @@ class InternalFinder {
     }
 
     fileprivate func close() {
-        IOServiceClose(self.serviceInternal)
         IOObjectRelease(self.serviceInternal)
 
         self.serviceInternal = 0
