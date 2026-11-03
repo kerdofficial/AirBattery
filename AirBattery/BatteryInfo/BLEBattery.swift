@@ -98,6 +98,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var otherAppleDevices: [String] = []
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
+    private var scanStarted: Date?
+    private var scanDevicesFound: Set<UUID> = []
     var scanTimer: Timer?
     //var a = 1
     //var mfgData: Data!
@@ -108,6 +110,12 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        switch central.state {
+        case .poweredOff, .unauthorized, .unsupported:
+            DebugLog.warning(.ble, "Central unavailable, state: \(central.state.rawValue)")
+        default:
+            DebugLog.info(.ble, "Central state: \(central.state.rawValue)")
+        }
         if central.state == .poweredOn {
             // 开始扫描
             scan(longScan: true)
@@ -121,13 +129,16 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         // 每隔一段时间启动一次扫描
         let interval = TimeInterval(29 * updateInterval)
         scanTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.scan(longScan: false) }
-        print("ℹ️ Start scanning BLE devices...")
+        DebugLog.info(.ble, "Source started")
         // 立即启动一次扫描
         scan(longScan: true)
     }
 
     func scan(longScan: Bool = false) {
         if centralManager.state == .poweredOn && !centralManager.isScanning {
+            scanStarted = debugScanStart(.ble)
+            scanDevicesFound.removeAll(keepingCapacity: true)
+            DebugLog.verbose(.ble, "Scan started")
             centralManager.scanForPeripherals(withServices: nil, options: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + (longScan ? 15.0 : 5.0)) {
                 self.stopScan()
@@ -136,15 +147,19 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func stopScan() {
+        if let started = scanStarted { DebugLog.verbose(.ble, "Scan duration \(Int(Date().timeIntervalSince(started) * 1000)) ms devices \(scanDevicesFound.count)") }
+        scanStarted = nil
         centralManager.stopScan()
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        DebugLog.verbose(.ble, "Connected, discovering services: \(id: peripheral.identifier.uuidString)")
         peripheral.delegate = self
         peripheral.discoverServices(nil)
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+        if scanStarted != nil { scanDevicesFound.insert(peripheral.identifier) }
         var get = false
         let now = Double(Date().timeIntervalSince1970)
         if let deviceName = peripheral.name{
@@ -172,12 +187,15 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         }
         if get && !peripherals.contains(where: { $0?.identifier == peripheral.identifier }) {
             self.peripherals.append(peripheral)
+            DebugLog.verbose(.ble, "Connecting: \(id: peripheral.identifier.uuidString)")
             self.centralManager.connect(peripheral, options: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in self?.release(peripheral) }
         }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        DebugLog.warning(.ble, "Connection failed: \(id: peripheral.identifier.uuidString)")
+        if let error { DebugLog.warning(.ble, "Connection error: \(error: error)") }
         release(peripheral)
     }
 
@@ -187,6 +205,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        DebugLog.verbose(.ble, "Services discovered: \(id: peripheral.identifier.uuidString)")
+        if let error { DebugLog.warning(.ble, "Services discovered failed: \(id: peripheral.identifier.uuidString) \(error: error)") }
         guard error == nil, let services = peripheral.services else { release(peripheral); return }
         let battery = CBUUID(string: "180F")
         let info = CBUUID(string: "180A")
@@ -197,9 +217,12 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        DebugLog.verbose(.ble, "Characteristics discovered: \(id: peripheral.identifier.uuidString)")
+        if let error { DebugLog.warning(.ble, "Characteristics discovered failed: \(id: peripheral.identifier.uuidString) \(error: error)") }
         guard let characteristics = service.characteristics else { return }
         if service.uuid == CBUUID(string: "180F") {
             if let level = characteristics.first(where: { $0.uuid == CBUUID(string: "2A19") }) {
+                DebugLog.verbose(.ble, "Reading battery: \(id: peripheral.identifier.uuidString)")
                 peripheral.readValue(for: level)
             } else {
                 noBatteryPeripherals.insert(peripheral.identifier)
@@ -214,6 +237,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     
     //电量信息
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        DebugLog.verbose(.ble, "Value received: \(id: peripheral.identifier.uuidString)")
+        if let error { DebugLog.warning(.ble, "Value received failed: \(id: peripheral.identifier.uuidString) \(error: error)") }
         //guard let name = peripheral.name else { return }
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
         //if blockedItems.contains(name) && !whitelistMode { return }
@@ -314,7 +339,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         if AirBatteryModel.checkIfBlocked(name: name) { return }
         
         if let deviceName = peripheral.name{
-            //NSLog("AirPods: \(messageType) message [\(data.hexEncodedString())]")
             let now = Date().timeIntervalSince1970
             let dataHex = data.hexEncodedString()
             let index = dataHex.index(dataHex.startIndex, offsetBy: 14)
@@ -346,10 +370,9 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 rightLevel = min((rightLevel ^ 128) & rightLevel, 100)
             }else{ rightLevel = getLevel(deviceName, "Right") }
             
+            DebugLog.verbose(.ble, "AirPods model ID \(public: productHex) case \(caseLevel) left \(leftLevel) right \(rightLevel) charging case \(caseCharging) left \(leftCharging) right \(rightCharging)")
             func part(_ level: UInt8, _ charging: Int) -> AirPodsPart? { level == 255 ? nil : AirPodsPart(level: Int(level), charging: charging) }
             AirPodsReading(name: deviceName, deviceID: deviceID, model: model, productID: productIDs[deviceName], casePart: part(caseLevel, caseCharging), left: part(leftLevel, leftCharging), right: part(rightLevel, rightCharging)).publication(now: now).apply()
-            //print("Type: \(messageType), C:\(caseLevel), L:\(leftLevel), R:\(rightLevel), Flip:\(messageType == "open" ? "\(flip)" : "none")")
-            //print("Raw Data: \(data.hexEncodedString())")
         }
     }
     

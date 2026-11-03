@@ -18,7 +18,7 @@ class CommandLineTool {
             if error == nil {
                 completion?()
             } else {
-                print("Error executing command: \(String(describing: error))")
+                DebugLog.error(.process, "CLI installation failed")
             }
         }
     }

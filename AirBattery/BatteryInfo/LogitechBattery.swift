@@ -49,14 +49,18 @@ class LogitechBattery {
     private var refreshScheduled = false
 
     func startScan() {
+        DebugLog.info(.hid, "Source started")
         refresh()
     }
 
     func refresh() {
-        guard readLogitech else { return }
+        guard readLogitech else { DebugLog.verbose(.hid, "Source disabled"); return }
         work.async {
             self.startManagerIfNeeded()
-            self.scan().forEach { AirBatteryModel.updateDevice($0) }
+            let started = debugScanStart(.hid)
+            let devices = self.scan()
+            DebugLog.verbose(.hid, "Scan duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms devices \(devices.count)")
+            devices.forEach { AirBatteryModel.updateDevice($0) }
         }
     }
 
@@ -68,7 +72,9 @@ class LogitechBattery {
         }
         IOHIDManagerSetDeviceMatchingMultiple(manager, matching as CFArray)
         let context = Unmanaged.passUnretained(self).toOpaque()
-        IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, _, _, _ in
+        IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, result, _, device in
+            DebugLog.info(.hid, "HID matched VID \(IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0) PID \(IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0) product \(device: IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown") status \(Int(result))")
+            if result != kIOReturnSuccess { DebugLog.warning(.hid, "HID manager match failed: \(Int(result))") }
             guard let context else { return }
             Unmanaged<LogitechBattery>.fromOpaque(context).takeUnretainedValue().scheduleRefresh()
         }, context)
@@ -82,6 +88,7 @@ class LogitechBattery {
     }
 
     private func deviceRemoved(_ device: IOHIDDevice) {
+        DebugLog.info(.hid, "HID removed VID \(intProperty(device, kIOHIDVendorIDKey) ?? 0) PID \(intProperty(device, kIOHIDProductIDKey) ?? 0) product \(device: IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown")")
         work.async {
             self.channels.removeValue(forKey: device)?.close()
             self.slots = [:]
@@ -136,6 +143,7 @@ class LogitechBattery {
             guard let info = slotInfo(for: key, transport: transport),
                   let feature = info.batteryFeature,
                   let battery = readBattery(feature, transport: transport) else {
+                if slots[key] != nil { DebugLog.warning(.hid, "Receiver slot read failed: \(slot)") }
                 slots.removeValue(forKey: key)
                 continue
             }
@@ -230,7 +238,7 @@ class LogitechBattery {
         let isBattery: (Data) -> Bool = { $0.count >= 13 && $0[1] == 0x0b && $0[8] == 0x04 }
         guard let reply = channel.request(Data(Self.headsetBatteryRequest), timeout: 2, accept: {
             $0.first == 0x51 && (isPoweredOff($0) || isBattery($0))
-        }), isBattery(reply) else { return nil }
+        }), isBattery(reply) else { DebugLog.warning(.hid, "Headset battery: no valid reply"); return nil }
         let state = reply[12]
         let battery = BatteryReading(level: min(Int(reply[10]), 100), isCharging: state == 0x01 || state == 0x02, isFull: state == 0x03)
         return makeDevice(id: id, type: "Headphones", name: name, battery: battery)

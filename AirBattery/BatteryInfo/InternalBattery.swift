@@ -19,7 +19,19 @@ struct iBattery {
 }
 
 class InternalBattery {
+    private static let powerLogLock = NSLock()
+    private static var lastLoggedPower: (ac: Bool, charging: Bool)?
     static var status: iBattery = getPowerState()
+
+    static func logTransitions(_ state: iBattery) {
+        powerLogLock.lock()
+        let previous = lastLoggedPower
+        lastLoggedPower = (state.acPowered, state.isCharging)
+        powerLogLock.unlock()
+        guard let previous else { return }
+        if previous.ac != state.acPowered { DebugLog.info(.power, "AC connected: \(state.acPowered)") }
+        if previous.charging != state.isCharging { DebugLog.info(.power, "Charging: \(state.isCharging)") }
+    }
     
     var name: String?
     var timeToFull: Int?

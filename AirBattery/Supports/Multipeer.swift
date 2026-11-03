@@ -12,6 +12,13 @@ import MultipeerKit
 class MultipeerService: ObservableObject {
     @AppStorage("ncGroupID") var ncGroupID = ""
     @AppStorage("deviceName") var deviceName = "Mac"
+    private let peerCountLock = NSLock()
+    private var cachedPeerCount = 0
+    var peerCount: Int {
+        peerCountLock.lock()
+        defer { peerCountLock.unlock() }
+        return cachedPeerCount
+    }
     let transceiver: MultipeerTransceiver
 
     init(serviceType: String) {
@@ -22,6 +29,16 @@ class MultipeerService: ObservableObject {
             security: .default,
             invitation: .automatic)
         transceiver = MultipeerTransceiver(configuration: configuration)
+        transceiver.availablePeersDidChange = { [weak self] peers in
+            guard let self else { return }
+            self.peerCountLock.lock()
+            self.cachedPeerCount = peers.count
+            self.peerCountLock.unlock()
+        }
+        transceiver.peerAdded = { peer in DebugLog.verbose(.nearcast, "Peer added: \(id: peer.id)") }
+        transceiver.peerRemoved = { peer in DebugLog.verbose(.nearcast, "Peer removed: \(id: peer.id)") }
+        transceiver.peerConnected = { peer in DebugLog.verbose(.nearcast, "Peer connected: \(id: peer.id)") }
+        transceiver.peerDisconnected = { peer in DebugLog.verbose(.nearcast, "Peer disconnected: \(id: peer.id)") }
         
         // Start the transceiver
         //transceiver.resume()
@@ -30,10 +47,11 @@ class MultipeerService: ObservableObject {
         transceiver.receive(Data.self) { data, peer in
             DispatchQueue.global().async {
                 guard let message = try? JSONDecoder().decode(NCMessage.self, from: data) else {
-                    print("Failed to decode message")
+                    DebugLog.warning(.nearcast, "Message decode failed")
                     return
                 }
-                if message.id != self.ncGroupID.prefix(15) { return }
+                DebugLog.verbose(.nearcast, "Received command \(public: ["resend", "trans", "notify", ""].contains(message.command) ? message.command : "unknown") payload \(data.count) bytes sender \(id: message.sender)")
+                if message.id != self.ncGroupID.prefix(15) { DebugLog.verbose(.nearcast, "Group mismatch: message dropped"); return }
                 switch message.command {
                 case "resend":
                     var allDevices = AirBatteryModel.getAll()
@@ -45,31 +63,15 @@ class MultipeerService: ObservableObject {
                         let message = NCMessage(id: String(self.ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "", content: data)
                         netcastService.sendMessage(message, peerID: peer.id)
                     } catch {
-                        print("Write JSON error：\(error)")
+                        DebugLog.error(.nearcast, "JSON operation failed: \(error: error)")
                     }
                     return
                 case "trans":
-                    print("Device received.")
+                    DebugLog.verbose(.nearcast, "Device received")
                     return
-                    /*if let jsonString = decryptString(message.content, password: self.ncGroupID) {
-                        if let jsonData = jsonString.data(using: .utf8) {
-                            if let device = try? JSONDecoder().decode(btdDevice.self, from: jsonData) {
-                                let ret = BTTool.connect(mac: device.mac)
-                                if ret {
-                                    createNotification(title: "Device Connected".local,
-                                                       message: String(format: "%@ from %@".local, device.name, peer.name))
-                                } else {
-                                    if let message = self.createInfo(type: 254, title: "Connection Failed".local, info: String(format: "cannot connect to your device.".local, device.name), atta: device.mac) {
-                                        self.sendMessage(message, peerID: peer.id)
-                                    }
-                                }
-                            }
-                        } else {
-                            print("Failed to convert JSON string to Data.")
-                        }
-                    }*/
+
                 case "notify":
-                    print("Info received.")
+                    DebugLog.verbose(.nearcast, "Notification received")
                     if let jsonString = decryptString(message.content, password: self.ncGroupID) {
                         if let jsonData = jsonString.data(using: .utf8) {
                             if let info = try? JSONDecoder().decode(NCNotification.self, from: jsonData) {
@@ -84,23 +86,25 @@ class MultipeerService: ObservableObject {
                                 default:
                                     createNotification(title: info.title, message: info.info)
                                 }
+                            } else {
+                                DebugLog.warning(.nearcast, "Notification decode failed")
                             }
                         } else {
-                            print("Failed to convert JSON string to Data.")
+                            DebugLog.warning(.nearcast, "JSON conversion failed")
                         }
                     }
                 case "":
-                    print("Data received.")
+                    DebugLog.verbose(.nearcast, "Data received")
                     if let jsonString = decryptString(message.content, password: self.ncGroupID) {
                         if let jsonData = jsonString.data(using: .utf8) {
                             let url = ncFolder.appendingPathComponent("\(message.sender).json")
-                            try? jsonData.write(to: url)
+                            do { try jsonData.write(to: url) } catch { DebugLog.error(.nearcast, "NearcastData write failed: \(error: error)") }
                         } else {
-                            print("Failed to convert JSON string to Data.")
+                            DebugLog.warning(.nearcast, "JSON conversion failed")
                         }
                     }
                 default:
-                    print("Unknown command: \(message.command)")
+                    DebugLog.warning(.nearcast, "Unknown command dropped")
                     if let info = self.createInfo(type: 255, title: "Unknown Command".local, info: String(format: "does not support the command \"%@\".".local, message.command)) {
                         self.sendMessage(info, peerID: peer.id)
                     }
@@ -108,23 +112,21 @@ class MultipeerService: ObservableObject {
                 }
             }
         }
-        
-        print("⚙️ Nearcast Group ID: \(ncGroupID)")
     }
     
     func resume() {
         transceiver.resume()
-        print("ℹ️ Nearcast is running...")
+        DebugLog.info(.nearcast, "Nearcast resumed")
     }
     
     func stop() {
         transceiver.stop()
-        print("ℹ️ Nearcast has stopped")
+        DebugLog.info(.nearcast, "Nearcast stopped")
     }
 
     func sendMessage(_ message: NCMessage, peerID: String? = nil) {
         guard let data = try? JSONEncoder().encode(message) else {
-            print("Failed to encode message")
+            DebugLog.warning(.nearcast, "Message encoding failed")
             return
         }
         let peers = removeDuplicatesPeer(peers: transceiver.availablePeers)
@@ -136,7 +138,7 @@ class MultipeerService: ObservableObject {
     }
     
     func refeshAll() {
-        print("ℹ️ Pulling data...")
+        DebugLog.verbose(.nearcast, "Requesting peer data")
         let message = NCMessage(id: String(ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "resend", content: "")
         self.sendMessage(message)
     }
@@ -152,7 +154,7 @@ class MultipeerService: ObservableObject {
                 self.sendMessage(message, peerID: peer.id)
             }
         } catch {
-            print("Write JSON error：\(error)")
+            DebugLog.error(.nearcast, "JSON operation failed: \(error: error)")
         }
     }
     
@@ -164,7 +166,7 @@ class MultipeerService: ObservableObject {
             guard let data = encryptString(jsonString, password: self.ncGroupID) else { return nil }
             return NCMessage(id: String(self.ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "notify", content: data)
         } catch {
-            print("Write JSON error：\(error)")
+            DebugLog.error(.nearcast, "JSON operation failed: \(error: error)")
         }
         return nil
     }

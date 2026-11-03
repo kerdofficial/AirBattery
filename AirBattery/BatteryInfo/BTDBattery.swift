@@ -17,16 +17,18 @@ class BTDBattery {
     func startScan() {
         let interval = TimeInterval(59 * updateInterval)
         scanTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.scanDevices(longScan: false) }
-        print("ℹ️ Start scanning Bluetooth HID devices...")
+        DebugLog.info(.bluetooth, "Source started")
         scanDevices(longScan: true)
     }
     
     func scanDevices(longScan: Bool = false) {
         Thread.detachNewThread {
             if self.readBTHID {
+                let started = debugScanStart(.bluetooth)
                 if longScan { BTDBattery.getOtherDevice(last: "2h", timeout: 40) }
                 let connects = BTDBattery.getConnected()
                 let names = BTDBattery.allDevices.filter({ connects.contains($0) })
+                defer { DebugLog.verbose(.bluetooth, "Scan duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms connected \(connects.count) matched \(names.count)") }
                 for name in names {
                     if var device = AirBatteryModel.getByName(name) {
                         device.lastUpdate = Date().timeIntervalSince1970
@@ -38,7 +40,7 @@ class BTDBattery {
     }
     
     static func getConnected(mac: Bool = false) -> [String]{
-        guard var bluetoothDevices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return [] }
+        guard var bluetoothDevices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { DebugLog.warning(.bluetooth, "Paired-device matching failed"); return [] }
         bluetoothDevices = bluetoothDevices.filter({ $0.isConnected() })
         if mac {
             let devices = bluetoothDevices.map({ ($0.addressString ?? "").uppercased().replacingOccurrences(of: "-", with: ":") })
@@ -51,6 +53,7 @@ class BTDBattery {
         let parent = ud.string(forKey: "deviceName") ?? "Mac"
         guard let resourcePath = Bundle.main.resourcePath,
               let result = process(path: "/bin/bash", arguments: ["\(resourcePath)/logReader.sh", "mac", last], timeout: timeout) else { return }
+        if !result.hasSuffix(LogReader.endMarker) { DebugLog.warning(.logReader, "Bluetooth HID read incomplete: missing #END") }
         let connected = getConnected(mac: true)
         var list = [[String : Any]]()
         for line in result.components(separatedBy: "\n") {
@@ -62,6 +65,7 @@ class BTDBattery {
                 list.append(json)
             }
         }
+        DebugLog.verbose(.bluetooth, "Bluetooth HID parsed entries \(list.count)")
         for d in list {
             guard let mac = d["mac"] as? String, var name = d["name"] as? String, let type = d["type"] as? String,
                   let time = d["time"] as? String, let level = d["level"] as? Int else { continue }

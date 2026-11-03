@@ -6,9 +6,6 @@
 //
 
 import Foundation
-import os
-
-let dataLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.kerdofficial.AirBattery", category: "data")
 
 struct btdDevice: Codable, Equatable {
     let time: Date
@@ -69,6 +66,7 @@ class AirBatteryModel {
     static let key = "com.kerdofficial.AirBattery.widget"
     
     static func updateDevice(_ device: Device) {
+        DebugLog.verbose(.model, "Device updated: \(device: device.deviceName) level \(device.batteryLevel) charging \(device.isCharging)")
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
         //if blockedItems.contains(device.deviceName) { return }
         devicesLock.lock(); defer { devicesLock.unlock() }
@@ -81,28 +79,35 @@ class AirBatteryModel {
     }
     
     static func hideDevice(_ name: String) {
-        devicesLock.lock(); defer { devicesLock.unlock() }
-        for index in _devices.indices {
-            if _devices[index].deviceName == name {
-                _devices[index].isHidden = true
-            }
+        var changed = false
+        devicesLock.lock()
+        for index in _devices.indices where _devices[index].deviceName == name {
+            changed = changed || !_devices[index].isHidden
+            _devices[index].isHidden = true
         }
+        devicesLock.unlock()
+        if changed { DebugLog.info(.model, "Device hidden: \(device: name)") }
     }
-    
+
     static func removeDevice(_ name: String) {
-        devicesLock.lock(); defer { devicesLock.unlock() }
+        devicesLock.lock()
+        let existed = _devices.contains { $0.deviceName == name }
         _devices.removeAll { $0.deviceName == name }
+        devicesLock.unlock()
+        if existed { DebugLog.info(.model, "Device removed: \(device: name)") }
     }
-    
+
     static func unhideDevice(_ name: String) {
-        devicesLock.lock(); defer { devicesLock.unlock() }
-        for index in _devices.indices {
-            if _devices[index].deviceName == name {
-                _devices[index].isHidden = false
-            }
+        var changed = false
+        devicesLock.lock()
+        for index in _devices.indices where _devices[index].deviceName == name {
+            changed = changed || _devices[index].isHidden
+            _devices[index].isHidden = false
         }
+        devicesLock.unlock()
+        if changed { DebugLog.info(.model, "Device unhidden: \(device: name)") }
     }
-    
+
     static func getBlackList() -> [Device] {
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let devices = getAll(noFilter: true)
@@ -212,7 +217,7 @@ class AirBatteryModel {
             do {
                 try ud.string(forKey: "deviceOnWidget")?.write(to: url, atomically: true, encoding: .utf8)
             } catch {
-                dataLog.error("Write singleDeviceName failed: \(error.localizedDescription, privacy: .public)")
+                DebugLog.error(.widget, "Write singleDeviceName failed: \(error: error)")
             }
         }
         return ""
@@ -241,7 +246,7 @@ class AirBatteryModel {
             let jsonData = try JSONEncoder().encode(devices)
             try jsonData.write(to: getJsonURL())
         } catch {
-            dataLog.error("Write data.json failed: \(error.localizedDescription, privacy: .public)")
+            DebugLog.error(.widget, "Write data.json failed: \(error: error)")
         }
         return devices
     }
@@ -252,7 +257,7 @@ class AirBatteryModel {
             let list = try JSONDecoder().decode([Device].self, from: jsonData)
             return list
         } catch {
-            dataLog.error("Read \(url.lastPathComponent, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            DebugLog.error(.widget, "Read device JSON failed: \(error: error)")
         }
         return []
     }

@@ -18,6 +18,8 @@ let macID = getMacModelIdentifier()
 var macIconSymbol: String?
 let isoFormatter = ISO8601DateFormatter()
 var lowPowerNoteDelay = [String: Double]()
+private let processTerminationStatusLock = NSLock()
+private var processTerminationStatuses = [String: Int32]()
 
 // Serialized incremental log reader for Enhanced HID scans
 class LogReader {
@@ -40,23 +42,29 @@ class LogReader {
     enum Trigger { case bootstrap, wake, connect }
 
     func run(_ trigger: Trigger) {
-        guard readBTHID else { return }
+        guard readBTHID else { DebugLog.verbose(.logReader, "Source disabled"); return }
         lock.lock()
         if isRunning { queued = true; lock.unlock(); return }
         isRunning = true
         lock.unlock()
 
         let args: [String]
+        let window: String
         if let start = computeStart(trigger) {
+            window = "incremental (at most 20m)"
             args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", "10m", start]
         } else {
             let win = (trigger == .bootstrap) ? "20m" : (trigger == .wake ? "3m" : "2m")
+            window = win
             args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", win]
         }
 
+        DebugLog.verbose(.logReader, "Read triggered: \(public: String(describing: trigger)) window \(public: window)")
         let readStart = Date()
         let out = process(path: "/bin/bash", arguments: args, timeout: 20)
         parseAndUpdate(output: out)
+        DebugLog.verbose(.logReader, "Read duration \(Int(Date().timeIntervalSince(readStart) * 1000)) ms")
+        if out?.hasSuffix(LogReader.endMarker) != true { DebugLog.warning(.logReader, "Read incomplete: missing #END") }
         if let out = out, out.hasSuffix(LogReader.endMarker) { advanceLastTS(readStart) }
 
         lock.lock()
@@ -89,8 +97,11 @@ class LogReader {
     private func parseAndUpdate(output: String?) {
         guard let output = output, !output.isEmpty else { return }
         let parent = ud.string(forKey: "deviceName") ?? "Mac"
+        var parsedCount = 0
+        defer { DebugLog.verbose(.logReader, "Parsed entries: \(parsedCount)") }
         for line in output.split(separator: "\n") {
             if let json = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] {
+                parsedCount += 1
                 let mac = json["mac"] as? String ?? ""
                 var name = json["name"] as? String ?? ""
                 let type = json["type"] as? String ?? "hid"
@@ -207,19 +218,31 @@ struct RoundedCornersShape: Shape {
     }
 }
 
+func debugScanStart(_ category: LogCategory) -> Date? {
+    guard DebugLog.isVerbose else { return nil }
+    DebugLog.verbose(category, "Scan started")
+    return Date()
+}
+
 public func process(path: String, arguments: [String], timeout: Int = 0) -> String? {
+    let logRun = path != "/bin/kill"
+    let started = logRun ? debugScanStart(.process) : nil
     let task = Process()
     task.launchPath = path
     task.arguments = arguments
-    task.standardError = Pipe()
+    task.standardError = FileHandle.nullDevice
 
     let outputPipe = Pipe()
     defer { outputPipe.fileHandleForReading.closeFile() }
     task.standardOutput = outputPipe
+    // waitUntilExit() spins the caller's run loop, and this runs on the main thread too.
+    let exited = DispatchSemaphore(value: 0)
+    task.terminationHandler = { _ in exited.signal() }
 
     if timeout != 0 {
         DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(timeout)) {
             if task.isRunning {
+                if logRun { DebugLog.warning(.process, "Tool timed out: \(public: URL(fileURLWithPath: path).lastPathComponent)") }
                 task.terminate()
                 // Escalate if still running shortly after terminate
                 DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(400)) {
@@ -235,11 +258,26 @@ public func process(path: String, arguments: [String], timeout: Int = 0) -> Stri
     do {
         try task.run()
     } catch let error {
-        print("\(error.localizedDescription)")
+        if logRun { DebugLog.warning(.process, "Tool launch failed: \(public: URL(fileURLWithPath: path).lastPathComponent) \(error: error)") }
         return nil
     }
 
     let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+    if logRun, exited.wait(timeout: .now() + 2) == .success {
+        let basename = URL(fileURLWithPath: path).lastPathComponent
+        let status = task.terminationStatus
+        processTerminationStatusLock.lock()
+        let previousStatus = processTerminationStatuses[basename]
+        processTerminationStatuses[basename] = status
+        processTerminationStatusLock.unlock()
+
+        if status != 0, previousStatus == nil || previousStatus == 0 {
+            DebugLog.warning(.process, "Tool failed: \(public: basename) exit \(Int(status))")
+        } else if status == 0, let previousStatus, previousStatus != 0 {
+            DebugLog.info(.process, "Tool recovered: \(public: basename)")
+        }
+        DebugLog.verbose(.process, "Tool \(public: basename) flag \(public: arguments.first.flatMap { ["-l", "-n", "-json", "SPBluetoothDataType", "SPHardwareDataType"].contains($0) ? $0 : nil } ?? "omitted") duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms exit \(Int(status)) stdout \(outputData.count) bytes")
+    }
     let output = String(decoding: outputData, as: UTF8.self)
 
     if output.isEmpty { return nil }
@@ -296,7 +334,7 @@ func createNotification(title: String, message: String, alertSound: Bool = true,
 
     UNUserNotificationCenter.current().add(request) { error in
         if let error = error {
-            print("Notification failed to send：\(error.localizedDescription)")
+            DebugLog.error(.alerts, "Notification delivery failed: \(error: error)")
         }
     }
 }
@@ -342,6 +380,7 @@ func getPowerState() -> iBattery {
         if let level = internalBattery.charge {
             var ib = iBattery(hasBattery: true, isCharging: internalBattery.isCharging ?? false, isCharged :internalBattery.isCharged ?? false, acPowered: internalBattery.acPowered ?? false, timeLeft: internalBattery.timeLeft, batteryLevel: Int(level))
             if #available(macOS 12.0, *) { ib.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled }
+            InternalBattery.logTransitions(ib)
             return ib
         }
     }
@@ -478,7 +517,7 @@ func encryptString(_ string: String, password: String) -> String? {
         let sealedBox = try AES.GCM.seal(stringData, using: key)
         return sealedBox.combined?.base64EncodedString()
     } catch {
-        print("Encryption error: \(error)")
+        DebugLog.error(.nearcast, "Encryption failed: \(error: error)")
         return nil
     }
 }
@@ -492,7 +531,7 @@ func decryptString(_ string: String, password: String) -> String? {
         let decryptedData = try AES.GCM.open(sealedBox, using: key)
         return String(data: decryptedData, encoding: .utf8)
     } catch {
-        print("Decryption error: \(error)")
+        DebugLog.error(.nearcast, "Decryption failed: \(error: error)")
         return nil
     }
 }
@@ -515,7 +554,7 @@ func getFiles(withExtension fileExtension: String, in directory: URL) -> [URL] {
         let filteredFiles = filesAndDirectories.filter { $0.pathExtension == fileExtension }
         return filteredFiles
     } catch {
-        print("Failed to get contents of directory: \(error)")
+        DebugLog.error(.widget, "Directory enumeration failed: \(error: error)")
         return []
     }
 }

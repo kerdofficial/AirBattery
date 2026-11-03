@@ -18,19 +18,21 @@ class IDeviceBattery {
     @AppStorage("updateInterval") var updateInterval = 1
     
     func startScan() {
-        print("ℹ️ Start scanning iDevice devices...")
+        DebugLog.info(.idevice, "Source started")
         scanDevices()
     }
     
     func scanDevices() {
-        guard readIDevice else { return }
+        guard readIDevice else { DebugLog.verbose(.idevice, "Source disabled"); return }
         lock.lock()
         if isRunning { lock.unlock(); return }
         isRunning = true
         lock.unlock()
 
         scanQueue.async {
+            let started = debugScanStart(.idevice)
             self.getIDeviceBattery()
+            DebugLog.verbose(.idevice, "Scan duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms")
             self.lock.lock()
             self.isRunning = false
             self.lock.unlock()
@@ -39,11 +41,14 @@ class IDeviceBattery {
     
     func getPencil(d: Device, type: String = "") {
         guard d.deviceType == "iPad", readPencil else { return }
+        var readSucceeded = false
+        defer { if !readSucceeded { DebugLog.warning(.idevice, "Pencil read failed: \(device: d.deviceName)") } }
         if let result = process(path: "/bin/bash", arguments: ["\(Bundle.main.resourcePath!)/logReader.sh", "\(Bundle.main.resourcePath!)/libimobiledevice/bin/idevicesyslog", type, d.deviceID], timeout: 11 * updateInterval) {
             if let json = try? JSONSerialization.jsonObject(with: Data(result.utf8), options: []) as? [String: Any] {
                 if let level = json["level"] as? Int, let model = json["model"] as? String, let vendor = json["vendor"] as? String {
                     let status = (json["status"] as? Int) ?? 0
-                    print("ℹ️ Pencil of \(d.deviceName): \(result)")
+                    readSucceeded = true
+                    DebugLog.verbose(.idevice, "Pencil level \(level) charging \(status)")
                     AirBatteryModel.updateDevice(Device(deviceID: "Pencil_"+d.deviceID, deviceType: vendor == "Apple" ? "ApplePencil" : "Pencil", deviceName: vendor == "Apple" ? "Apple Pencil".local : "Pencil".local, deviceModel: model, batteryLevel: level, isCharging: status, parentName: d.deviceName, lastUpdate: Date().timeIntervalSince1970))
                 }
             }
@@ -52,6 +57,7 @@ class IDeviceBattery {
     
     func getIDeviceBattery() {
         if let result = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/idevice_id", arguments: ["-n"]) {
+            DebugLog.verbose(.idevice, "Enumeration devices \(result.split(whereSeparator: { $0.isNewline }).count)")
             for id in result.components(separatedBy: .newlines).filter({ !$0.isEmpty }) {
                 if let d = AirBatteryModel.getByID(id) {
                     if (Double(Date().timeIntervalSince1970) - d.lastUpdate) > Double(60 * updateInterval) { writeBatteryInfo(id, "-n") }
@@ -62,6 +68,7 @@ class IDeviceBattery {
             }
         }
         if let result = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/idevice_id", arguments: ["-l"]) {
+            DebugLog.verbose(.idevice, "Enumeration devices \(result.split(whereSeparator: { $0.isNewline }).count)")
             for id in result.components(separatedBy: .newlines).filter({ !$0.isEmpty }) {
                 if let d = AirBatteryModel.getByID(id) {
                     if (Double(Date().timeIntervalSince1970) - d.lastUpdate) > Double(60 * updateInterval) { writeBatteryInfo(id, "") }
@@ -74,7 +81,8 @@ class IDeviceBattery {
     }
     
     func writeBatteryInfo(_ id: String, _ connectType: String) {
-        //print("ℹ️ Getting Battery Info for \(id)")
+        var readSucceeded = false
+        defer { if !readSucceeded { DebugLog.warning(.idevice, "Device battery read failed: \(id: id)") } }
         let lastUpdate = Date().timeIntervalSince1970
         if connectType == "" { _ = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/wificonnection", arguments: ["-u", id, "true"]) }
         if let deviceInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/ideviceinfo", arguments: [connectType, "-u", id]){
@@ -88,6 +96,7 @@ class IDeviceBattery {
                        let levelValue = Int(level),
                        let charging = b.filter({ $0.contains("BatteryIsCharging") }).first?.components(separatedBy: ": ").last,
                        let isCharging = Bool(charging) {
+                        readSucceeded = true
                         AirBatteryModel.updateDevice(Device(deviceID: id, deviceType: type, deviceName: deviceName, deviceModel: model, batteryLevel: levelValue, isCharging: isCharging ? 1 : 0, lastUpdate: lastUpdate, iconSymbol: DeviceSymbols.symbol(modelCode: model)))
                         if let watchInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/comptest", arguments: [id], timeout: 15) {
                             let w = watchInfo.components(separatedBy: .newlines)

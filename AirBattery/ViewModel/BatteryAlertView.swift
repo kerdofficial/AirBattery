@@ -225,6 +225,7 @@ func batteryAlert() {
                 if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Low Battery".local
                 let body = String(format: "\"%@\" has %d%% battery remaining.".local, device.deviceName, device.batteryLevel)
+                DebugLog.info(.alerts, "Low battery alert: \(device: device.deviceName) level \(device.batteryLevel) threshold \(alert.low)")
                 createNotification(title: title, message: body, alertSound: alert.lowSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }
@@ -234,6 +235,7 @@ func batteryAlert() {
                 if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Fully Charged".local
                 let body = String(format: "The battery of \"%@\" has reached %d%%.".local, device.deviceName, device.batteryLevel)
+                DebugLog.info(.alerts, "Full battery alert: \(device: device.deviceName) level \(device.batteryLevel) threshold \(alert.full)")
                 createNotification(title: title, message: body, alertSound: alert.fullSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }

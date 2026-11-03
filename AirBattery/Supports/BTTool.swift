@@ -19,15 +19,15 @@ class BTTool {
                 attempts += 1
             }
             if !device.isConnected() {
-                print("\(String(describing: device.name)) disconnected.")
+                DebugLog.info(.bluetooth, "Device disconnected: \(device: device.name ?? "")")
                 let selector = NSSelectorFromString("remove")
                 
                 if device.responds(to: selector) {
                     device.perform(selector)
-                    print("Unpair attempt successful.")
+                    DebugLog.info(.bluetooth, "Unpair attempt successful")
                     return true
                 } else {
-                    print("Unpair method not available.")
+                    DebugLog.warning(.bluetooth, "Unpair method unavailable")
                     return false
                 }
             }

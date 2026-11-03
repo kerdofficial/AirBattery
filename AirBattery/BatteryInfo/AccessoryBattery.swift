@@ -19,14 +19,16 @@ class AccessoryBattery {
     private let work = DispatchQueue(label: "com.kerdofficial.AirBattery.accessory", qos: .utility)
 
     func startScan() {
-        print("ℹ️ Start scanning accessory power sources...")
+        DebugLog.info(.accessory, "Source started")
         refresh()
     }
 
     func refresh() {
-        guard readBTDevice else { return }
+        guard readBTDevice else { DebugLog.verbose(.accessory, "Source disabled"); return }
         work.async {
+            let started = debugScanStart(.accessory)
             let reading = AccessoryBattery.read()
+            DebugLog.verbose(.accessory, "Scan duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms devices \(reading.devices.count) AirPods groups \(reading.airPods.count)")
             reading.devices.forEach { AirBatteryModel.updateDevice($0) }
             reading.airPods.forEach { $0.apply() }
         }
@@ -34,8 +36,10 @@ class AccessoryBattery {
 
     static func read() -> (devices: [Device], airPods: [AirPodsPublication]) {
         guard let info = IOPSCopyPowerSourcesByType(4)?.takeRetainedValue(),
-              let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return ([], []) }
+              let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { DebugLog.warning(.accessory, "Power-source read failed"); return ([], []) }
+        DebugLog.verbose(.accessory, "Power-source count: \(sources.count)")
         let descriptions = sources.compactMap { IOPSGetPowerSourceDescription(info, $0)?.takeUnretainedValue() as? [String: Any] }
+        if descriptions.count != sources.count { DebugLog.warning(.accessory, "Power-source descriptions unavailable: \(sources.count - descriptions.count)") }
         return (readOthers(descriptions), airPods(from: descriptions))
     }
 
