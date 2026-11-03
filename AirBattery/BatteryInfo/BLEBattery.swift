@@ -95,6 +95,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     
     var centralManager: CBCentralManager!
     var peripherals: [CBPeripheral?] = []
+    var noBatteryPeripherals: Set<UUID> = []
     var otherAppleDevices: [String] = []
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
@@ -152,7 +153,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
                 if !(data.count > 1 && data[0] == 76 && data[1] == 0) {
                     //获取非Apple的普通BLE设备数据
-                    if readBLEDevice {
+                    if readBLEDevice && !noBatteryPeripherals.contains(peripheral.identifier) {
                         if let device = AirBatteryModel.getByName(deviceName) {
                             if now - device.lastUpdate > Double(60 * updateInterval) { get = true } } else { get = true }
                     }
@@ -170,40 +171,46 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 }
             }
         }
-        if get {
+        if get && !peripherals.contains(where: { $0?.identifier == peripheral.identifier }) {
             self.peripherals.append(peripheral)
             self.centralManager.connect(peripheral, options: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in self?.release(peripheral) }
         }
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        release(peripheral)
+    }
+
+    func release(_ peripheral: CBPeripheral) {
+        peripherals.removeAll { $0?.identifier == peripheral.identifier }
+        centralManager.cancelPeripheralConnection(peripheral)
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
-        guard let services = peripheral.services else { return }
-        for service in services {
-            peripheral.discoverCharacteristics(nil, for: service)
-        }
+        guard error == nil, let services = peripheral.services else { release(peripheral); return }
+        let battery = CBUUID(string: "180F")
+        let info = CBUUID(string: "180A")
+        if !services.contains(where: { $0.uuid == battery }) { noBatteryPeripherals.insert(peripheral.identifier) }
+        let wanted = services.filter { $0.uuid == battery || $0.uuid == info }
+        if wanted.isEmpty { release(peripheral); return }
+        for service in wanted { peripheral.discoverCharacteristics(nil, for: service) }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
         guard let characteristics = service.characteristics else { return }
-        var clear = true
-        if service.uuid == CBUUID(string: "180F") || service.uuid == CBUUID(string: "180A") {
-            for characteristic in characteristics {
-                if characteristic.uuid == CBUUID(string: "2A19") || characteristic.uuid == CBUUID(string: "2A24") || characteristic.uuid == CBUUID(string: "2A29") {
-                    clear = false
-                    peripheral.readValue(for: characteristic)
-                }
+        if service.uuid == CBUUID(string: "180F") {
+            if let level = characteristics.first(where: { $0.uuid == CBUUID(string: "2A19") }) {
+                peripheral.readValue(for: level)
+            } else {
+                noBatteryPeripherals.insert(peripheral.identifier)
+                release(peripheral)
+            }
+        } else if service.uuid == CBUUID(string: "180A") {
+            for characteristic in characteristics where characteristic.uuid == CBUUID(string: "2A24") || characteristic.uuid == CBUUID(string: "2A29") {
+                peripheral.readValue(for: characteristic)
             }
         }
-        if clear { if let index = self.peripherals.firstIndex(of: peripheral) { self.peripherals.remove(at: index) } }
-        
     }
     
     //电量信息
@@ -214,6 +221,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         //if !blockedItems.contains(name) && whitelistMode { return }
         
         if characteristic.uuid == CBUUID(string: "2A19"){
+            defer { release(peripheral) }
             if let data = characteristic.value, let deviceName = peripheral.name {
                 let now = Date().timeIntervalSince1970
                 let level = Int(data[0])
@@ -262,7 +270,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 if let data = characteristic.value, let vendor = data.ascii() { bleDevicesVendor[deviceName] = vendor }
             }
         }
-        //self.centralManager.cancelPeripheralConnection(peripheral)
     }
     
     func getLevel(_ name: String, _ side: String) -> UInt8{
