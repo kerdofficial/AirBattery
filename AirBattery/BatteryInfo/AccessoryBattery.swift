@@ -48,8 +48,8 @@ class AccessoryBattery {
                   let name = ps[kIOPSNameKey] as? String, !name.isEmpty,
                   !AirBatteryModel.checkIfBlocked(name: name),
                   let whole = part(ps) else { return nil }
-            let productID = (ps["Product ID"] as? Int).map { String(format: "%04x", $0) } ?? ""
-            var reading = AirPodsReading(name: name, deviceID: ps["Accessory Identifier"] as? String ?? name, model: getHeadphoneModel(productID))
+            let productID = ps["Product ID"] as? Int
+            var reading = AirPodsReading(name: name, deviceID: ps["Accessory Identifier"] as? String ?? name, model: getHeadphoneModel(productID.map { String(format: "%04x", $0) } ?? ""), productID: productID)
             if let parts = ps["Combined Parts"] as? [[String: Any]] {
                 for combined in parts {
                     let partName = combined["Part Name"] as? String ?? ""

@@ -36,6 +36,7 @@ struct Device: Hashable, Codable {
     var parentName: String = ""
     var lastUpdate: Double
     var realUpdate: Double = 0.0
+    var iconSymbol: String?
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(hasBattery)
@@ -53,6 +54,7 @@ struct Device: Hashable, Codable {
         hasher.combine(lastUpdate)
         hasher.combine(realUpdate)
         hasher.combine(parentName)
+        hasher.combine(iconSymbol)
     }
 }
 

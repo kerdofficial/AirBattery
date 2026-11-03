@@ -127,7 +127,7 @@ struct MultiBatteryView: View {
                                             .offset(x:-0.2, y:1.5)
                                         
                                     } else {
-                                        Image(getDeviceIcon(item))
+                                        deviceIcon(item)
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
                                             .colorScheme(darkMode ? .dark : .light)
@@ -171,7 +171,7 @@ struct MultiBatteryView: View {
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
                                             .foregroundColor(Color(getPowerColor(item)))
                                     }.rotationEffect(Angle(degrees: 135))
-                                    Image(getDeviceIcon(item))
+                                    deviceIcon(item)
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .colorScheme(darkMode ? .dark : .light)
@@ -422,7 +422,7 @@ struct popover: View {
                              .frame(height: 24, alignment: .center)
                              .padding(.horizontal, 8)*/
                             let ib = ib2ab(InternalBattery.status)
-                            Image(getDeviceIcon(ib))
+                            deviceIcon(ib)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundColor(.blackWhite)
@@ -458,7 +458,7 @@ struct popover: View {
                                 }
                             }else{
                                 HStack {
-                                    Image(getDeviceIcon(allDevices[index]))
+                                    deviceIcon(allDevices[index])
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundColor(.blackWhite)
@@ -619,7 +619,7 @@ struct popover: View {
                                             refeshPinnedBar()
                                         }
                                     }, label: {
-                                        Image(getDeviceIcon(hiddenDevices[index]))
+                                        deviceIcon(hiddenDevices[index])
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
                                             .frame(width: 20, height: 20, alignment: .center)
@@ -736,7 +736,7 @@ struct DeviceActionsMenu: View {
         alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
         let existing = alertList.first(where: { $0.name == device.deviceName })
         let alert = existing ?? btAlert(name: device.deviceName, full: 80, fullOn: true, fullSound: true, low: 20, lowOn: true, lowSound: true)
-        AlertWindowController().showAlert(with: alert, iconName: getDeviceIcon(device), onConfirm: { newAlert in
+        AlertWindowController().showAlert(with: alert, icon: deviceIcon(device), onConfirm: { newAlert in
             alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
             alertList.removeAll { $0.name == device.deviceName }
             alertList.append(newAlert)
@@ -787,7 +787,7 @@ struct nearcastView: View {
             ForEach(devices.indices, id: \.self) { index in
                 VStack(spacing: 0){
                     HStack {
-                        Image(getDeviceIcon(devices[index]))
+                        deviceIcon(devices[index])
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .foregroundColor(.blackWhite)

@@ -52,7 +52,7 @@ struct LargeWidgetView2: View {
                         let item = entry.data[index]
                         VStack{
                             HStack() {
-                                Image(getDeviceIcon(item))
+                                deviceIcon(item)
                                     .resizable().iconAccentedRendering()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(width: 20, height: 20, alignment: .center)
@@ -161,7 +161,7 @@ struct doubleRowBatteryWidgetEntryView: View {
                                                 .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
                                                 .widgetFill(Color(getPowerColor(item)))
                                         }.rotationEffect(Angle(degrees: 129.6))
-                                        Image(getDeviceIcon(item))
+                                        deviceIcon(item)
                                             .resizable().iconAccentedRendering()
                                             .aspectRatio(contentMode: .fit)
                                             //sf.foregroundColor(.blackWhite)
@@ -216,7 +216,7 @@ struct doubleRowBatteryWidgetEntryView: View {
                                                 .widgetFill(Color(getPowerColor(item)))
                                         }.rotationEffect(Angle(degrees: 129.6))
                                         
-                                        Image(getDeviceIcon(item))
+                                        deviceIcon(item)
                                             .resizable().iconAccentedRendering()
                                             .aspectRatio(contentMode: .fit)
                                             //.foregroundColor(.blackWhite)
@@ -289,7 +289,7 @@ struct singleBatteryWidgetEntryView: View {
                                     .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
                                     .widgetFill(Color(getPowerColor(item)))
                             }.rotationEffect(Angle(degrees: 126))
-                            Image(getDeviceIcon(item))
+                            deviceIcon(item)
                                 .resizable().iconAccentedRendering()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 50, height: 50, alignment: .center)

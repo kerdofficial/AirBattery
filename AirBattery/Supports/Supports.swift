@@ -15,6 +15,7 @@ let mainTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 let dockTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 let nearCastTimer = Timer.publish(every: TimeInterval(60 * updateInterval + Int(arc4random_uniform(10)) - Int(arc4random_uniform(10))), on: .main, in: .common).autoconnect()
 let macID = getMacModelIdentifier()
+var macIconSymbol: String?
 let isoFormatter = ISO8601DateFormatter()
 var lowPowerNoteDelay = [String: Double]()
 
@@ -374,7 +375,7 @@ func getMonoNum(_ num: Int, count: Int = 3, bold: Bool = false) -> String {
 func ib2ab(_ ib: iBattery) -> Device {
     @AppStorage("machineType") var machineType = "mac"
     @AppStorage("deviceName") var deviceName = "Mac"
-    return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970))
+    return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970), iconSymbol: macIconSymbol)
 }
 
 func sliceList(data: [Device], length: Int, count: Int) -> [Device] {
@@ -533,7 +534,7 @@ func getHeadphoneModel(_ model: String) -> String {
         return "Airpods 2"
     case "2013":
         return "Airpods 3"
-    case "201b", "2019":
+    case "201b", "2019", "201c", "201e", "2020":
         ///201b: ANC
         ///2019: no ANC
         return "Airpods 4"
@@ -543,7 +544,7 @@ func getHeadphoneModel(_ model: String) -> String {
         return "Airpods Pro 2"
     case "2027":
         return "Airpods Pro 3"
-    case "2030":
+    case "2030", "2036":
         return "Airpods 5"
     case "2003":
         return "PowerBeats 3"
@@ -572,6 +573,21 @@ func getHeadphoneModel(_ model: String) -> String {
     default:
         return "Headphones"
     }
+}
+
+func deviceIconSymbol(_ d: Device) -> String? {
+    guard let symbol = d.iconSymbol, NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil else { return nil }
+    return symbol
+}
+
+func deviceIcon(_ d: Device) -> Image {
+    if let symbol = deviceIconSymbol(d) { return Image(systemName: symbol) }
+    return Image(getDeviceIcon(d))
+}
+
+func deviceNSImage(_ d: Device) -> NSImage? {
+    if let symbol = deviceIconSymbol(d) { return NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
+    return NSImage(named: getDeviceIcon(d))
 }
 
 func getDeviceIcon(_ d: Device) -> String {

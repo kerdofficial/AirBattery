@@ -307,6 +307,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         return "general_bt"
     }
     
+    private var productIDs = [String: Int]()
+
     func getAirpods(peripheral: CBPeripheral, data: Data, messageType: String) {
         guard let name = peripheral.name else { return }
         if AirBatteryModel.checkIfBlocked(name: name) { return }
@@ -318,7 +320,9 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             let index = dataHex.index(dataHex.startIndex, offsetBy: 14)
             let flip = (strtoul(String(dataHex[index]), nil, 16) & 0x02) == 0
             let deviceID = peripheral.identifier.uuidString
-            var model = (messageType == "open" ? getHeadphoneModel(String(format: "%02x%02x", data[6], data[5])) : "Airpods Pro 2")
+            let productHex = String(format: "%02x%02x", data[6], data[5])
+            if messageType == "open" { productIDs[deviceName] = AirPodsReading.productID(hex: productHex) }
+            var model = (messageType == "open" ? getHeadphoneModel(productHex) : "Airpods Pro 2")
             if let Case = AirBatteryModel.getByName(deviceName + " (Case)".local) { model = Case.deviceModel ?? model }
             
             var caseLevel = data[messageType == "open" ? 16 : 12]
@@ -343,7 +347,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }else{ rightLevel = getLevel(deviceName, "Right") }
             
             func part(_ level: UInt8, _ charging: Int) -> AirPodsPart? { level == 255 ? nil : AirPodsPart(level: Int(level), charging: charging) }
-            AirPodsReading(name: deviceName, deviceID: deviceID, model: model, casePart: part(caseLevel, caseCharging), left: part(leftLevel, leftCharging), right: part(rightLevel, rightCharging)).publication(now: now).apply()
+            AirPodsReading(name: deviceName, deviceID: deviceID, model: model, productID: productIDs[deviceName], casePart: part(caseLevel, caseCharging), left: part(leftLevel, leftCharging), right: part(rightLevel, rightCharging)).publication(now: now).apply()
             //print("Type: \(messageType), C:\(caseLevel), L:\(leftLevel), R:\(rightLevel), Flip:\(messageType == "open" ? "\(flip)" : "none")")
             //print("Raw Data: \(data.hexEncodedString())")
         }
@@ -395,10 +399,17 @@ struct AirPodsReading {
     var name: String
     var deviceID: String
     var model: String
+    var productID: Int?
     var casePart: AirPodsPart?
     var left: AirPodsPart?
     var right: AirPodsPart?
     var whole: AirPodsPart?
+
+    static func productID(hex: String) -> Int? { Int(hex, radix: 16) }
+
+    func symbol(_ variant: String?) -> String? {
+        productID.flatMap { DeviceSymbols.symbol(vendorProductID: "76:\($0)", variant: variant) }
+    }
 
     func publication(now: Double) -> AirPodsPublication {
         let caseName = name + " (Case)".local
@@ -416,23 +427,23 @@ struct AirPodsReading {
                 }
             }
             if let body {
-                devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: name, deviceModel: model, batteryLevel: body.level, isCharging: body.charging, isCharged: body.charged, lastUpdate: now))
+                devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: name, deviceModel: model, batteryLevel: body.level, isCharging: body.charging, isCharged: body.charged, lastUpdate: now, iconSymbol: symbol(nil)))
             }
             return AirPodsPublication(devices: devices, removals: removals)
         }
 
         if let casePart {
-            devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: caseName, deviceModel: model, batteryLevel: casePart.level, isCharging: casePart.charging, isCharged: casePart.charged, lastUpdate: now))
+            devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: caseName, deviceModel: model, batteryLevel: casePart.level, isCharging: casePart.charging, isCharged: casePart.charged, lastUpdate: now, iconSymbol: symbol("chargingcase")))
         }
         let neverMerge = ud.bool(forKey: "neverMergeTws")
         let threshold = ud.object(forKey: "twsMerge") as? Int ?? 5
         if !neverMerge, let left, let right, abs(left.level - right.level) < threshold, left.charging == right.charging {
             removals += [name + " 🄻", name + " 🅁"]
-            devices.append(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: name + " 🄻🅁", deviceModel: model, batteryLevel: min(left.level, right.level), isCharging: left.charging, isCharged: left.charged && right.charged, isHidden: false, parentName: caseName, lastUpdate: now))
+            devices.append(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: name + " 🄻🅁", deviceModel: model, batteryLevel: min(left.level, right.level), isCharging: left.charging, isCharged: left.charged && right.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol(nil)))
         } else {
             removals.append(name + " 🄻🅁")
-            if let left { devices.append(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: name + " 🄻", deviceModel: model, batteryLevel: left.level, isCharging: left.charging, isCharged: left.charged, isHidden: false, parentName: caseName, lastUpdate: now)) }
-            if let right { devices.append(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: name + " 🅁", deviceModel: model, batteryLevel: right.level, isCharging: right.charging, isCharged: right.charged, isHidden: false, parentName: caseName, lastUpdate: now)) }
+            if let left { devices.append(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: name + " 🄻", deviceModel: model, batteryLevel: left.level, isCharging: left.charging, isCharged: left.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol("left"))) }
+            if let right { devices.append(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: name + " 🅁", deviceModel: model, batteryLevel: right.level, isCharging: right.charging, isCharged: right.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol("right"))) }
         }
         return AirPodsPublication(devices: devices, removals: removals)
     }

@@ -132,6 +132,11 @@ class MagicBattery {
         var percent = 0
         var productName = ""
         let lastUpdate = Date().timeIntervalSince1970
+        var iconSymbol: String?
+        if let vendor = IORegistryEntryCreateCFProperty(object, "VendorID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Int,
+           let product = IORegistryEntryCreateCFProperty(object, "ProductID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Int {
+            iconSymbol = DeviceSymbols.symbol(vendorProductID: "\(vendor):\(product)")
+        }
         if let productProperty = IORegistryEntryCreateCFProperty(object, "DeviceAddress" as CFString, kCFAllocatorDefault, 0) {
             if let value = productProperty.takeRetainedValue() as? String { mac = value.replacingOccurrences(of:"-", with:":").uppercased() }
         }
@@ -157,7 +162,7 @@ class MagicBattery {
             }
         }
         if !productName.contains("Internal"){
-            AirBatteryModel.updateDevice(Device(deviceID: mac, deviceType: type, deviceName: productName, batteryLevel: percent, isCharging: status, parentName: deviceName, lastUpdate: lastUpdate))
+            AirBatteryModel.updateDevice(Device(deviceID: mac, deviceType: type, deviceName: productName, batteryLevel: percent, isCharging: status, parentName: deviceName, lastUpdate: lastUpdate, iconSymbol: iconSymbol))
         }
     }
 
@@ -226,6 +231,10 @@ class MagicBattery {
         IOObjectRelease(serialPortIterator)
     }
     
+    private func podSymbol(_ productHex: String, _ variant: String?) -> String? {
+        AirPodsReading.productID(hex: productHex).flatMap { DeviceSymbols.symbol(vendorProductID: "76:\($0)", variant: variant) }
+    }
+
     func getAirpods() {
         let now = Date().timeIntervalSince1970
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
@@ -249,7 +258,7 @@ class MagicBattery {
                                     apCase.lastUpdate = now
                                     mainDevice = apCase
                                 } else {
-                                    mainDevice = Device(deviceID: id, deviceType: "ap_case", deviceName: n + " (Case)".local, deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, lastUpdate: now)
+                                    mainDevice = Device(deviceID: id, deviceType: "ap_case", deviceName: n + " (Case)".local, deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, lastUpdate: now, iconSymbol: podSymbol(productID, "chargingcase"))
                                 }
                             }
                         }
@@ -263,7 +272,7 @@ class MagicBattery {
                                     apLeft.lastUpdate = now
                                     subDevices.append(apLeft)
                                 } else {
-                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_left", deviceName: n + " 🄻", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
+                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_left", deviceName: n + " 🄻", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now, iconSymbol: podSymbol(productID, "left")))
                                 }
                             }
                             mainDevice?.deviceModel = getHeadphoneModel(productID)
@@ -278,7 +287,7 @@ class MagicBattery {
                                     apRight.lastUpdate = now
                                     subDevices.append(apRight)
                                 } else {
-                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_right", deviceName: n + " 🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
+                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_right", deviceName: n + " 🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now, iconSymbol: podSymbol(productID, "right")))
                                 }
                             }
                             mainDevice?.deviceModel = getHeadphoneModel(productID)
@@ -289,7 +298,7 @@ class MagicBattery {
                                 if abs(Int(subDevices[0].batteryLevel) - Int(subDevices[1].batteryLevel)) < 3 {
                                     AirBatteryModel.hideDevice(n + " 🄻")
                                     AirBatteryModel.hideDevice(n + " 🅁")
-                                    AirBatteryModel.updateDevice(Device(deviceID: n + "_All", deviceType: "ap_pod_all", deviceName: n + " 🄻🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: Int(min(subDevices[0].batteryLevel, subDevices[1].batteryLevel)), isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
+                                    AirBatteryModel.updateDevice(Device(deviceID: n + "_All", deviceType: "ap_pod_all", deviceName: n + " 🄻🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: Int(min(subDevices[0].batteryLevel, subDevices[1].batteryLevel)), isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now, iconSymbol: podSymbol(productID, nil)))
                                 }
                             } else {
                                 AirBatteryModel.hideDevice(n + " 🄻🅁")

@@ -188,6 +188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         
         updateDelay = updateInterval
         machineType = getMacDeviceType()
+        DispatchQueue.global(qos: .utility).async { macIconSymbol = DeviceSymbols.symbol(modelCode: macID) }
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
@@ -560,16 +561,16 @@ func refeshPinnedBar(unpin: String? = nil) {
     for device in pinnedDevices {
         if let index = pinnedItems.firstIndex(where: { $0.button?.toolTip == device.deviceName }) {
             pinnedItems[index].button?.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
-            let icon = getDeviceIcon(device)
-            if pinnedIcons[device.deviceName] != icon, let image = pinnedImage(named: icon) {
+            let icon = deviceIconSymbol(device) ?? getDeviceIcon(device)
+            if pinnedIcons[device.deviceName] != icon, let image = pinnedImage(for: device) {
                 pinnedItems[index].button?.image = image
                 pinnedIcons[device.deviceName] = icon
             }
         } else {
             let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = statusItem.button {
-                let icon = getDeviceIcon(device)
-                if let image = pinnedImage(named: icon) {
+                let icon = deviceIconSymbol(device) ?? getDeviceIcon(device)
+                if let image = pinnedImage(for: device) {
                     button.image = image
                     pinnedIcons[device.deviceName] = icon
                 }
@@ -586,8 +587,8 @@ func refeshPinnedBar(unpin: String? = nil) {
     for name in expNames { pinnedIcons[name] = nil }
 }
 
-private func pinnedImage(named icon: String) -> NSImage? {
-    guard let image = NSImage(named: icon)?.resized(to: NSSize(width: 17, height: 17)) else { return nil }
+private func pinnedImage(for device: Device) -> NSImage? {
+    guard let image = deviceNSImage(device)?.resized(to: NSSize(width: 17, height: 17)) else { return nil }
     image.isTemplate = true
     return image
 }

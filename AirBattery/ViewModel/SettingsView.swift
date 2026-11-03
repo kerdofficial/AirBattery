@@ -536,7 +536,7 @@ struct DebugView: View {
                                         parentName = getMacDeviceName()
                                     }, label: {
                                         let ib = ib2ab(InternalBattery.status)
-                                        Image(getDeviceIcon(ib))
+                                        deviceIcon(ib)
                                             .resizable().scaledToFit()
                                             .frame(width: 16, height: 16)
                                     }).buttonStyle(.borderless)
