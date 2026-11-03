@@ -62,3 +62,21 @@ struct UpdaterSettingsView: View {
     }
 }
 
+
+final class DebugUpdaterDelegate: NSObject, SPUUpdaterDelegate {
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        DebugLog.info(.updates, "Update found: \(public: item.displayVersionString)")
+    }
+
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
+        DebugLog.info(.updates, "No update found")
+    }
+
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        DebugLog.error(.updates, "Update aborted: \(error: error)")
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        DebugLog.info(.updates, "Installing update: \(public: item.displayVersionString)")
+    }
+}

@@ -14,6 +14,7 @@ import ServiceManagement
 
 let fd = FileManager.default
 let ud = UserDefaults.standard
+private let debugUpdaterDelegate = DebugUpdaterDelegate()
 var updaterController: SPUStandardUpdaterController!
 var statusBarItem: NSStatusItem!
 var pinnedItems = [NSStatusItem]()
@@ -36,7 +37,7 @@ struct AirBatteryApp: App {
     init() {
         // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
         // This is where you can also pass an updater delegate if you need one
-        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: debugUpdaterDelegate, userDriverDelegate: nil)
         registerNotificationCategory()
     }
     
@@ -78,6 +79,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var alertCheckTimer: Timer?
     var iDeviceScanTimer: Timer?
     var lastWidgetReload = Date.distantPast
+    private var previousSourceStates: [String: Bool] = [:]
+    private var previousVisibleDevices: [String: Device] = [:]
     private var lastWidgetSignature: [String] = []
     private var pendingWidgetSignature: [String] = []
     private var widgetReloadWork: DispatchWorkItem?
@@ -88,6 +91,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         
         if response.actionIdentifier == "DELAY_30_MIN" {
             let deviceName = response.notification.request.content.userInfo["customInfo"] as? String ?? ""
+            DebugLog.info(.alerts, "Alert snoozed: \(device: deviceName) duration 1800 s")
             lowPowerNoteDelay[deviceName] = Date().timeIntervalSince1970 + 1800
         }
         completionHandler()
@@ -148,7 +152,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     menuX = menuX < visibleFrame.origin.x ? visibleFrame.origin.x + 20 : menuX + 10
                     menuY = max(menuY - menuHeight/2, visibleFrame.origin.y)
                 default:
-                    print("⚠️ Failed to get Dock orientation!")
+                    DebugLog.warning(.app, "Failed to get Dock orientation")
                 }
             }
             contentView.frame = NSRect(x: menuX, y: menuY, width: 352, height: menuHeight)
@@ -185,6 +189,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 "neverRemindMe": [String]()
             ]
         )
+        DebugLog.startSession()
         
         updateDelay = updateInterval
         machineType = getMacDeviceType()
@@ -209,9 +214,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         if !fd.fileExists(atPath: ncFolder.path) {
             do {
                 try fd.createDirectory(at: ncFolder, withIntermediateDirectories: true, attributes: nil)
-                print("ℹ️ Folder created at: \(ncFolder.path)")
+                DebugLog.info(.nearcast, "NearcastData directory created")
             } catch {
-                print("⚠️ Failed to create folder: \(error)")
+                DebugLog.error(.nearcast, "NearcastData directory creation failed: \(error: error)")
             }
         } else {
             let oldFiles = getFiles(withExtension: "json", in: ncFolder)
@@ -224,16 +229,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURLEvent(_:replyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
         //if let window = NSApplication.shared.windows.first { window.close() }
         launchAtLogin = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.kerdofficial.AirBatteryHelper" }
-        print("⚙️ Launch AirBattery at login = \(launchAtLogin)")
-        print("⚙️ Icon mode = \(showOn)")
+        DebugLog.info(.settings, "Launch at login: \(launchAtLogin)")
+        DebugLog.info(.settings, "Icon mode: \(public: showOn)")
         if ncGroupID != "" { if nearCast { netcastService.resume() } }
         if let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) { SPBluetoothDataModel.shared.data = result }
         
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error = error { print("⚠️ Notification authorization denied: \(error.localizedDescription)") }
+            DebugLog.info(.app, "Notification authorization granted: \(granted)")
+            if let error { DebugLog.error(.app, "Notification authorization failed: \(error: error)") }
         }
         UNUserNotificationCenter.current().delegate = self
         
+        logSourceStates()
+        DebugLog.registerExportSection("Nearcast") {
+            ["Enabled: \(ud.bool(forKey: "nearCast"))",
+             "Peers: \(netcastService.peerCount)",
+             "NearcastData files: \(getFiles(withExtension: "json", in: ncFolder).count)"]
+        }
         bleBattery.startScan()
         btdBattery.startScan()
         MagicBattery.shared.startScan()
@@ -327,7 +339,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         alertCheckTimer = timer
     }
     
+    private func logSourceStates() {
+        let states = [
+            "readBTDevice": MagicBattery.shared.readBTDevice,
+            "readBLEDevice": bleBattery.readBLEDevice,
+            "readBTHID": readBTHID,
+            "readLogitech": LogitechBattery.shared.readLogitech,
+            "readIDevice": IDeviceBattery.shared.readIDevice,
+            "readPencil": IDeviceBattery.shared.readPencil,
+            "ideviceOverBLE": bleBattery.ideviceOverBLE
+        ]
+        for (source, enabled) in states where previousSourceStates[source] != enabled {
+            DebugLog.info(.app, "Source enabled: \(public: source) \(enabled)")
+        }
+        previousSourceStates = states
+    }
+
     func refreshWidgetData() {
+        logSourceStates()
+        let visible = Dictionary(AirBatteryModel.getAll().map { ($0.deviceName, $0) }, uniquingKeysWith: { first, _ in first })
+        for (name, device) in visible {
+            if let previous = previousVisibleDevices[name] {
+                if previous.isCharging != device.isCharging {
+                    DebugLog.info(.model, "Charging changed: \(device: name) charging \(device.isCharging)")
+                }
+            } else {
+                DebugLog.info(.model, "Device appeared: \(device: name) type \(public: device.deviceType) model \(public: device.deviceModel ?? "unknown") level \(device.batteryLevel) charging \(device.isCharging)")
+            }
+        }
+        for (name, device) in previousVisibleDevices where visible[name] == nil {
+            DebugLog.info(.model, "Device disappeared: \(device: name) (last update \(Int(max(0, Date().timeIntervalSince1970 - device.lastUpdate))) s ago)")
+        }
+        previousVisibleDevices = visible
         LogitechBattery.shared.refresh()
         AccessoryBattery.shared.refresh()
         SPBluetoothDataModel.shared.refeshData(completion: { _ in
@@ -344,16 +387,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         let signature = AirBatteryModel.writeData()
             .map { "\($0.deviceName)|\($0.batteryLevel)|\($0.isCharging)|\($0.isCharged)" }
         DispatchQueue.main.async {
-            guard self.widgetInterval != -1, signature != self.lastWidgetSignature else { return }
+            guard self.widgetInterval != -1, signature != self.lastWidgetSignature else { DebugLog.verbose(.widget, "Reload skipped (unchanged)"); return }
             self.pendingWidgetSignature = signature
             self.reloadWidgetsIfChanged()
         }
     }
     
     private func reloadWidgetsIfChanged() {
-        guard widgetReloadWork == nil else { return }
+        guard widgetReloadWork == nil else { DebugLog.verbose(.widget, "Reload skipped (debounced)"); return }
         let wait = widgetReloadMinGap - Date().timeIntervalSince(lastWidgetReload)
         if wait > 0 {
+            DebugLog.verbose(.widget, "Reload skipped (debounced)")
             let work = DispatchWorkItem { [weak self] in
                 self?.widgetReloadWork = nil
                 self?.reloadWidgetsIfChanged()
@@ -362,13 +406,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
             return
         }
-        guard widgetInterval != -1, pendingWidgetSignature != lastWidgetSignature else { return }
+        guard widgetInterval != -1, pendingWidgetSignature != lastWidgetSignature else { DebugLog.verbose(.widget, "Reload skipped (unchanged)"); return }
         lastWidgetSignature = pendingWidgetSignature
+        DebugLog.verbose(.widget, "Reload sent")
         lastWidgetReload = Date()
         WidgetCenter.shared.reloadAllTimelines()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        defer { DebugLog.endSession() }
         if let act = keepAliveActivity { ProcessInfo.processInfo.endActivity(act) }
 
         _ = process(path: "/usr/bin/killall", arguments: ["idevicesyslog"])
@@ -395,7 +441,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 if let name = device.name, let macAdd = device.addressString {
                     if AirBatteryModel.checkIfBlocked(name: name) { return }
                     //if let prefix = getFirstNCharacters(of: macAdd, count: 8) {
-                        print("ℹ️ \(name) (\(macAdd)) connected")
+                        DebugLog.info(.bluetooth, "Device connected: \(device: name)")
                         let isAppleDevice = device.isAppleDevice
                         btConnectQueue.async {
                             usleep(2500000)
@@ -470,13 +516,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             if url.scheme == "airbattery"{
                 switch url.host {
                 case "writedata" :
-                    print("Writing data to disk...")
+                    DebugLog.info(.app, "URL command: writedata")
                     AirBatteryModel.writeData()
                 case "reloadwingets" :
-                    print("Reloading all widgets...")
+                    DebugLog.info(.app, "URL command: reloadwingets")
                     AirBatteryModel.writeData()
                     WidgetCenter.shared.reloadAllTimelines()
-                default: print("Unknow command!")
+                default: DebugLog.warning(.app, "Unknown URL command: \(url.host ?? "")")
                 }
             }
         }
@@ -603,14 +649,16 @@ func ensureLoginItem(enabled: Bool) -> Bool {
             } else {
                 try SMAppService.mainApp.unregister()
             }
+            DebugLog.info(.settings, "Login item updated: enabled \(enabled)")
             return true
         } catch {
-            NSLog("[AirBattery] SMAppService register/unregister failed: \(error.localizedDescription)")
+            DebugLog.error(.settings, "Login item update failed: \(error: error)")
             return false
         }
     } else {
         let ok = SMLoginItemSetEnabled(helperBundleIdentifier as CFString, enabled)
-        if !ok { NSLog("[AirBattery] SMLoginItemSetEnabled failed for \(helperBundleIdentifier)") }
+        if !ok { DebugLog.error(.settings, "Login item update failed") }
+        DebugLog.info(.settings, "Login item updated: enabled \(enabled) success \(ok)")
         return ok
     }
 }

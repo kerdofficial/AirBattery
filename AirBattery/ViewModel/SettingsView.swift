@@ -8,6 +8,7 @@
 import SwiftUI
 import ServiceManagement
 import WidgetKit
+import UniformTypeIdentifiers
 
 private enum SettingsPane: String, CaseIterable {
     case general = "General"
@@ -16,7 +17,7 @@ private enum SettingsPane: String, CaseIterable {
     case nearcast = "Nearcast"
     case widget = "Widget"
     case blocklist = "Blocklist"
-    case debug = "Debug"
+    case developer = "Developer"
 
     var title: LocalizedStringKey {
         switch self {
@@ -33,7 +34,7 @@ private enum SettingsPane: String, CaseIterable {
         case .nearcast: "nearcast"
         case .widget: "widget"
         case .blocklist: "blacklist"
-        case .debug: "debug"
+        case .developer: "debug"
         }
     }
 }
@@ -41,9 +42,10 @@ private enum SettingsPane: String, CaseIterable {
 struct SettingsView: View {
     @State private var selectedItem: String? = SettingsPane.general.rawValue
     @AppStorage("showDebug") var showDebug: Bool = false
+    @AppStorage("settingsPaneRequest") var paneRequest = ""
 
     private var panes: [SettingsPane] {
-        SettingsPane.allCases.filter { $0 != .debug || showDebug }
+        SettingsPane.allCases.filter { $0 != .developer || showDebug }
     }
 
     private var current: SettingsPane {
@@ -65,6 +67,14 @@ struct SettingsView: View {
         }
         .frame(minWidth: 820, idealWidth: 820, minHeight: 620, idealHeight: 620)
         .background(WindowConfigurator { $0.toolbarStyle = .unified })
+        .onAppear(perform: applyPaneRequest)
+        .onChange(of: paneRequest) { _ in applyPaneRequest() }
+    }
+
+    private func applyPaneRequest() {
+        guard !paneRequest.isEmpty else { return }
+        if SettingsPane(rawValue: paneRequest) != nil { selectedItem = paneRequest }
+        paneRequest = ""
     }
 
     @ViewBuilder
@@ -76,7 +86,7 @@ struct SettingsView: View {
         case .nearcast: NearcastView()
         case .widget: WidgetView()
         case .blocklist: BlacklistView()
-        case .debug: DebugView(selectedItem: $selectedItem)
+        case .developer: DeveloperView(selectedItem: $selectedItem)
         }
     }
 }
@@ -553,7 +563,7 @@ struct BlacklistView: View {
     }
 }
 
-struct DebugView: View {
+struct DeveloperView: View {
     @AppStorage("test_debug") var test_debug = false
     @AppStorage("test_hasib") var test_hasib = false
     @AppStorage("test_acpower") var test_ac = false
@@ -572,11 +582,98 @@ struct DebugView: View {
     @State private var fullCharged: Bool = false
     @State private var isPresented: Bool = false
     
+    @AppStorage("verboseLogging") var verboseLogging = false
+    @State private var logSize = 0
+    @State private var confirmClear = false
+    @State private var exportFailed = false
+    @State private var devices = [Device]()
+    
     @Binding var selectedItem: String?
+    
+    private func refresh() {
+        logSize = DebugLog.totalLogSize
+        devices = AirBatteryModel.getAll(noFilter: true)
+    }
+    
+    private func exportDiagnostics() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd-HHmm"
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "AirBattery-Diagnostics-\(formatter.string(from: Date())).txt"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let failed = (try? DebugLog.exportDiagnostics(to: url)) == nil
+                DispatchQueue.main.async {
+                    exportFailed = failed
+                    if !failed { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                }
+            }
+        }
+    }
     
     var body: some View {
         SForm {
-            SGroupBox {
+            SGroupBox(label: "Logging", footer: "Logs stay on this Mac. Device names, addresses and identifiers are replaced with anonymous codes before anything is written.") {
+                SToggle("Verbose logging", isOn: $verboseLogging, tips: "Logs far more detail about every source and update. This can increase CPU usage, so turn it on only while troubleshooting.")
+                LabeledContent {
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(logSize), countStyle: .file))
+                        .foregroundStyle(.secondary)
+                } label: {
+                    SRowLabel(title: "Log files", tips: "Stored in ~/Library/Logs/AirBattery.")
+                }
+                LabeledContent {
+                    HStack {
+                        Button("Show in Finder") {
+                            try? FileManager.default.createDirectory(at: DebugLog.logDirectory, withIntermediateDirectories: true)
+                            NSWorkspace.shared.open(DebugLog.logDirectory)
+                        }
+                        Button("Export Diagnostics...", action: exportDiagnostics)
+                    }
+                } label: {
+                    SRowLabel(title: "Diagnostics", tips: exportFailed ? "The diagnostics file could not be saved." : "Saves an anonymous report you can attach to a bug report.")
+                }
+                LabeledContent {
+                    if confirmClear {
+                        HStack {
+                            Button("Cancel") { confirmClear = false }
+                            Button("Clear", role: .destructive) {
+                                DebugLog.clearLogs()
+                                confirmClear = false
+                                refresh()
+                            }
+                        }
+                    } else {
+                        Button("Clear Logs...") { confirmClear = true }
+                    }
+                } label: {
+                    SRowLabel(title: "Clear logs", tips: confirmClear ? "All log files on this Mac will be deleted." : nil)
+                }
+            }
+            SGroupBox(label: "Device Codes", footer: "Exported logs show these codes instead of device names. The list is shown only here and is never written to a log.") {
+                if devices.isEmpty {
+                    Text("No devices found.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(devices, id: \.deviceName) { device in
+                    LabeledContent {
+                        Text(DebugLog.pseudonym(device: device.deviceName))
+                            .font(.body.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    } label: {
+                        HStack(spacing: 8) {
+                            deviceIcon(device)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
+                            Text(device.deviceName)
+                        }
+                    }
+                }
+            }
+            SGroupBox(label: "Testing") {
                 SToggle("Debug mode", isOn: $test_debug)
                 SButton("Data folder", buttonTitle: "Open") {
                     NSWorkspace.shared.open(ncFolder.deletingLastPathComponent())
@@ -653,12 +750,14 @@ struct DebugView: View {
                 }
             }
             Section {
-                Button("Hide Debug Menu", action: {
+                Button("Hide Developer Menu", action: {
                     test_debug = false
                     showDebug = false
                     selectedItem = "General"
                 })
             }
         }
+        .onAppear(perform: refresh)
+        .onReceive(dockTimer) { _ in refresh() }
     }
 }

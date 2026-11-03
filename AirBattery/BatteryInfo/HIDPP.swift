@@ -53,12 +53,13 @@ final class HIDChannel {
 
     /// Manager-owned devices cannot take their own callbacks, so the channel creates a separate device for the same service.
     init?(managedDevice: IOHIDDevice) {
-        guard let device = IOHIDDeviceCreate(kCFAllocatorDefault, IOHIDDeviceGetService(managedDevice)) else { return nil }
+        guard let device = IOHIDDeviceCreate(kCFAllocatorDefault, IOHIDDeviceGetService(managedDevice)) else { DebugLog.warning(.hid, "HID channel creation failed"); return nil }
         self.device = device
         maxOutputReportSize = IOHIDDeviceGetProperty(device, kIOHIDMaxOutputReportSizeKey as CFString) as? Int ?? 0
         reportBufferSize = max(IOHIDDeviceGetProperty(device, kIOHIDMaxInputReportSizeKey as CFString) as? Int ?? 0, 64)
         reportBuffer = .allocate(capacity: reportBufferSize)
         guard IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess else {
+            DebugLog.warning(.hid, "HID device open failed")
             reportBuffer.deallocate()
             return nil
         }
@@ -104,6 +105,8 @@ final class HIDChannel {
             guard let bytes = buffer.bindMemory(to: UInt8.self).baseAddress else { return kIOReturnBadArgument }
             return IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, CFIndex(bytes[0]), bytes, report.count)
         }
+        DebugLog.verbose(.hid, "HID request status \(Int(result))")
+        if result != kIOReturnSuccess { DebugLog.warning(.hid, "HID request failed: \(Int(result))") }
         if result == kIOReturnSuccess {
             _ = semaphore.wait(timeout: .now() + timeout)
         }
@@ -146,6 +149,7 @@ struct HIDPPTransport {
     }
 
     func featureIndex(for id: HIDPPFeatureID) -> UInt8? {
+        DebugLog.verbose(.hid, "Resolve feature 0x\(public: String(id.rawValue, radix: 16))")
         guard let payload = request(featureIndex: 0, function: 0, parameters: [UInt8(id.rawValue >> 8), UInt8(id.rawValue & 0xFF)]),
               let index = payload.first, index != 0 else { return nil }
         return index
@@ -153,6 +157,7 @@ struct HIDPPTransport {
 
     /// Returns the reply payload, or nil on timeout or error reply.
     func request(featureIndex: UInt8, function: UInt8, parameters: [UInt8] = []) -> [UInt8]? {
+        DebugLog.verbose(.hid, "HID++ slot \(deviceIndex) feature index \(featureIndex) function \(function)")
         guard parameters.count <= reportLength - 4 else { return nil }
         let address = (function << 4) | Self.softwareID
         var report = [UInt8](repeating: 0, count: reportLength)
@@ -174,8 +179,9 @@ struct HIDPPTransport {
         }
 
         for _ in 0 ..< Self.busyAttempts {
-            guard let data = channel.request(Data(report), timeout: timeout, accept: accept) else { return nil }
+            guard let data = channel.request(Data(report), timeout: timeout, accept: accept) else { DebugLog.verbose(.hid, "HID++ no reply slot \(deviceIndex)"); return nil }
             let reply = [UInt8](data)
+            DebugLog.verbose(.hid, "HID++ response feature index \(featureIndex) function \(function) error \(reply[2] == 0xFF || reply[2] == 0x8F ? Int(reply[5]) : 0)")
             if reply[2] == 0x8F { return nil }
             if reply[2] == 0xFF {
                 let busy: UInt8 = 0x08

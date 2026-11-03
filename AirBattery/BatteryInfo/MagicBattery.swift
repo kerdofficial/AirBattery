@@ -22,6 +22,7 @@ class SPBluetoothDataModel {
             data = result
             completion(result)
         } else {
+            DebugLog.warning(.bluetooth, "system_profiler refresh failed")
             error?()
         }
     }
@@ -39,19 +40,22 @@ class MagicBattery {
     func startScan() {
         //let interval = TimeInterval(59.0 * updateInterval)
         //scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
-        print("ℹ️ Start scanning Magic devices...")
+        DebugLog.info(.magic, "Source started")
         scanDevices()
     }
     
     @objc func scanDevices() {
+        let started = debugScanStart(.magic)
+        var readings = 0
+        defer { DebugLog.verbose(.magic, "Scan duration \(Int((started.map { Date().timeIntervalSince($0) } ?? 0) * 1000)) ms readings \(readings)") }
         //Thread.detachNewThread {
             if self.readBTDevice {
-                self.getIOBTBattery()
-                self.getOtherBTBattery()
-                self.getMagicBattery()
-                self.getOldMagicKeyboard()
-                self.getOldMagicTrackpad()
-                self.getOldMagicMouse()
+                readings += self.getIOBTBattery()
+                readings += self.getOtherBTBattery()
+                readings += self.getMagicBattery()
+                readings += self.getOldMagicKeyboard()
+                readings += self.getOldMagicTrackpad()
+                readings += self.getOldMagicMouse()
             }
         //}
     }
@@ -125,7 +129,8 @@ class MagicBattery {
         return def
     }
     
-    func readMagicBattery(object: io_object_t) {
+    @discardableResult
+    func readMagicBattery(object: io_object_t) -> Int {
         var mac = ""
         var type = "hid"
         var status = 0
@@ -163,72 +168,90 @@ class MagicBattery {
         }
         if !productName.contains("Internal"){
             AirBatteryModel.updateDevice(Device(deviceID: mac, deviceType: type, deviceName: productName, batteryLevel: percent, isCharging: status, parentName: deviceName, lastUpdate: lastUpdate, iconSymbol: iconSymbol))
+            return 1
         }
+        return 0
     }
 
-    func getMagicBattery() {
+    @discardableResult
+    func getMagicBattery() -> Int {
+        var found = 0
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
         let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("AppleDeviceManagementHIDEventService")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if kernResult != KERN_SUCCESS { DebugLog.warning(.magic, "IORegistry matching failed: \(Int(kernResult))") }
         
         if KERN_SUCCESS == kernResult {
             repeat {
                 object = IOIteratorNext(serialPortIterator)
-                if object != 0 { readMagicBattery(object: object) }
+                if object != 0 { found += readMagicBattery(object: object) }
             } while object != 0
             IOObjectRelease(object)
         }
         IOObjectRelease(serialPortIterator)
+        return found
     }
     
-    func getOldMagicKeyboard() {
+    @discardableResult
+    func getOldMagicKeyboard() -> Int {
+        var found = 0
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
         let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("AppleBluetoothHIDKeyboard")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if kernResult != KERN_SUCCESS { DebugLog.warning(.magic, "IORegistry matching failed: \(Int(kernResult))") }
         if KERN_SUCCESS == kernResult {
             repeat {
                 object = IOIteratorNext(serialPortIterator)
-                if object != 0 { readMagicBattery(object: object) }
+                if object != 0 { found += readMagicBattery(object: object) }
             } while object != 0
             IOObjectRelease(object)
         }
         IOObjectRelease(serialPortIterator)
+        return found
     }
     
-    func getOldMagicTrackpad() {
+    @discardableResult
+    func getOldMagicTrackpad() -> Int {
+        var found = 0
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
         let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("BNBTrackpadDevice")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if kernResult != KERN_SUCCESS { DebugLog.warning(.magic, "IORegistry matching failed: \(Int(kernResult))") }
         if KERN_SUCCESS == kernResult {
             repeat {
                 object = IOIteratorNext(serialPortIterator)
-                if object != 0 { readMagicBattery(object: object) }
+                if object != 0 { found += readMagicBattery(object: object) }
             } while object != 0
             IOObjectRelease(object)
         }
         IOObjectRelease(serialPortIterator)
+        return found
     }
     
-    func getOldMagicMouse() {
+    @discardableResult
+    func getOldMagicMouse() -> Int {
+        var found = 0
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
         let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("BNBMouseDevice")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if kernResult != KERN_SUCCESS { DebugLog.warning(.magic, "IORegistry matching failed: \(Int(kernResult))") }
         if KERN_SUCCESS == kernResult {
             repeat {
                 object = IOIteratorNext(serialPortIterator)
-                if object != 0 { readMagicBattery(object: object) }
+                if object != 0 { found += readMagicBattery(object: object) }
             } while object != 0
             IOObjectRelease(object)
         }
         IOObjectRelease(serialPortIterator)
+        return found
     }
     
     private func podSymbol(_ productHex: String, _ variant: String?) -> String? {
@@ -311,8 +334,10 @@ class MagicBattery {
         }
     }
     
-    func getOtherBTBattery() {
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
+    @discardableResult
+    func getOtherBTBattery() -> Int {
+        var found = 0
+        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return 0 }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
@@ -325,33 +350,38 @@ class MagicBattery {
                            let type = info["device_minorType"] as? String,
                            (info["device_vendorID"] as? String) != "0x004C" {
                             guard let batLevel = Int(level.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "%", with: "")) else { continue }
+                            found += 1
                             AirBatteryModel.updateDevice(Device(deviceID: id, deviceType: type, deviceName: n, batteryLevel: batLevel, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
                         }
                     }
                 }
             }
         }
+        return found
     }
     
-    func getIOBTBattery() {
-        if let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] {
-            for device in devices {
-                let name = device.name
-                let address = device.addressString
-                let connected = device.isConnected()
-                //let usb = device.getValue(forKey: "isPluggedOverUSB") as! Bool ?? false
-                
-                if connected && !device.isAppleDevice {
-                    if let battery = device.getValue(forKey: "batteryPercentSingle") as? Int, let name = name, let address = address, battery != 0 {
-                        let type = getDeviceType(address.replacingOccurrences(of: "-", with: ":").uppercased(),"")
-                        AirBatteryModel.updateDevice(Device(deviceID: address, deviceType: type, deviceName: name, batteryLevel: battery, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
-                    }
-                    //let left = device.getValue(forKey: "batteryPercentLeft") as? Int
-                    //let right = device.getValue(forKey: "batteryPercentRight") as? Int
-                    //let _case = device.getValue(forKey: "batteryPercentCase") as? Int
+    @discardableResult
+    func getIOBTBattery() -> Int {
+        var found = 0
+        guard let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { DebugLog.warning(.magic, "IOBluetooth matching failed"); return 0 }
+        for device in devices {
+            let name = device.name
+            let address = device.addressString
+            let connected = device.isConnected()
+            //let usb = device.getValue(forKey: "isPluggedOverUSB") as! Bool ?? false
+
+            if connected && !device.isAppleDevice {
+                if let battery = device.getValue(forKey: "batteryPercentSingle") as? Int, let name = name, let address = address, battery != 0 {
+                    let type = getDeviceType(address.replacingOccurrences(of: "-", with: ":").uppercased(),"")
+                    found += 1
+                    AirBatteryModel.updateDevice(Device(deviceID: address, deviceType: type, deviceName: name, batteryLevel: battery, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
                 }
+                //let left = device.getValue(forKey: "batteryPercentLeft") as? Int
+                //let right = device.getValue(forKey: "batteryPercentRight") as? Int
+                //let _case = device.getValue(forKey: "batteryPercentCase") as? Int
             }
         }
+        return found
     }
 }
 

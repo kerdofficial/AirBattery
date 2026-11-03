@@ -211,7 +211,7 @@ struct MultiBatteryView: View {
                     let message = NCMessage(id: String(ncGroupID.prefix(15)), sender: systemUUID ?? deviceName, command: "", content: data)
                     netcastService.sendMessage(message)
                 } catch {
-                    print("Failed to write JSON: \(error)")
+                    DebugLog.error(.nearcast, "Failed to encode Nearcast data: \(error: error)")
                 }
             }
         }
@@ -365,6 +365,10 @@ struct popover: View {
                     .buttonStyle(PlainButtonStyle())
                     .onHover{ hovering in overInfoButton = hovering }
                     Button(action: {
+                        if NSEvent.modifierFlags.contains(.option) {
+                            ud.set(true, forKey: "showDebug")
+                            ud.set("Developer", forKey: "settingsPaneRequest")
+                        }
                         dockWindow.orderOut(nil)
                         statusBarItem.menu?.cancelTracking()
                         openSettingPanel()

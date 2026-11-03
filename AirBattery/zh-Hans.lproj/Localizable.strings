@@ -182,3 +182,25 @@
 "Hide" = "隐藏";
 "More actions" = "更多操作";
 "Menu bar" = "菜单栏";
+
+"Developer" = "开发者";
+"Logging" = "日志";
+"Logs stay on this Mac. Device names, addresses and identifiers are replaced with anonymous codes before anything is written." = "日志仅保存在这台 Mac 上。写入前，设备名称、地址和标识符都会被替换为匿名代码。";
+"Verbose logging" = "详细日志";
+"Logs far more detail about every source and update. This can increase CPU usage, so turn it on only while troubleshooting." = "记录每个来源和每次更新的更多细节。这可能会增加 CPU 占用，请仅在排查问题时开启。";
+"Log files" = "日志文件";
+"Stored in ~/Library/Logs/AirBattery." = "存储在 ~/Library/Logs/AirBattery 中。";
+"Show in Finder" = "在访达中显示";
+"Export Diagnostics..." = "导出诊断信息…";
+"Diagnostics" = "诊断信息";
+"The diagnostics file could not be saved." = "无法保存诊断文件。";
+"Saves an anonymous report you can attach to a bug report." = "保存一份匿名报告，可附加到问题反馈中。";
+"Clear" = "清除";
+"Clear Logs..." = "清除日志…";
+"Clear logs" = "清除日志";
+"All log files on this Mac will be deleted." = "这台 Mac 上的所有日志文件都将被删除。";
+"Device Codes" = "设备代码";
+"Exported logs show these codes instead of device names. The list is shown only here and is never written to a log." = "导出的日志会用这些代码代替设备名称。此列表仅在这里显示，从不写入日志。";
+"No devices found." = "未找到设备。";
+"Testing" = "测试";
+"Hide Developer Menu" = "隐藏开发者菜单";
