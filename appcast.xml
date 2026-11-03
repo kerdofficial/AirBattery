@@ -2,5 +2,56 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>AirBattery</title>
+        <item>
+            <title>Version 2.0.0</title>
+            <pubDate>Tue, 03 Nov 2026 19:14:27 +0100</pubDate>
+            <sparkle:version>200</sparkle:version>
+            <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/kerdofficial/AirBattery/releases/tag/v2.0.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>The first release of this fork of <a href="https://github.com/lihaoyun6/AirBattery">lihaoyun6/AirBattery</a>. It is a separate app: it installs next to the original, and settings do not carry over.</p>
+<h2>Requirements</h2>
+<ul>
+<li>macOS 13 or later</li>
+</ul>
+<h2>New</h2>
+<ul>
+<li>Logitech devices on Lightspeed, Unifying or Bolt receivers, and Logitech headsets, show their battery level and charging state.</li>
+<li>Bluetooth accessories that macOS reports through system power sources, such as keyboards that were missing before, now appear.</li>
+<li>AirPods show case, left and right levels without opening the case.</li>
+<li>Device icons come from the native macOS device catalog, including widgets.</li>
+<li>A native macOS 26 design: Liquid Glass popover and Dock window, concentric corners, and a native settings window with a sidebar and grouped forms.</li>
+<li>Widgets use the native system background, stay readable when the desktop is dimmed, and reload as soon as device data changes.</li>
+<li>A manual device order, set by dragging in Menu Bar &amp; Dock settings, applied to the popover, Dock, pinned items, widgets and the CLI.</li>
+<li>Sort devices by name or battery level.</li>
+<li>A single "..." menu on each device row replaces the hover buttons.</li>
+<li>Copy a device ID from the device list.</li>
+<li>An option to always show earbuds separately.</li>
+<li>A hidden Developer pane (Option-click the Settings button in the popover) with anonymous local diagnostics you can export and send.</li>
+<li>MacBook Neo is shown with the MacBook icon.</li>
+</ul>
+<h2>Improved</h2>
+<ul>
+<li>Widgets keep updating while the popover and Dock window are closed, driven by one app-level timer.</li>
+<li>Battery alerts check every device and run from the app timer.</li>
+<li>iPhone and iPad scans are parsed safely, time out cleanly and run as one coalesced scan.</li>
+<li>Pinned menu bar icons refresh when a device type changes.</li>
+<li>Copy across the app is consistent English, with Simplified and Traditional Chinese updated.</li>
+<li>Updated Sparkle, swift-argument-parser and the bundled libimobiledevice tools (OpenSSL 3.5.9).</li>
+</ul>
+<h2>Fixed</h2>
+<ul>
+<li>A crash after wake and duplicate device rows, by locking the device list and Bluetooth data.</li>
+<li>The Bluetooth log reader works again on macOS 26 and 27.</li>
+<li>AirPods levels are clamped to 0-100, only real Apple advertisements are accepted, and the AirPods 4 ANC icon is correct.</li>
+<li>Bluetooth LE peripherals are released, and ones without a battery service are skipped.</li>
+<li>Crash-prone force casts were removed from the sources.</li>
+<li>The IOService handle is no longer closed on every power read.</li>
+<li>"Never" can be selected for offline device removal.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/kerdofficial/AirBattery/releases/download/v2.0.0/AirBattery-2.0.0.zip" sparkle:edSignature="HfvokxQHwCOEUSkynB9zf3zhbhhrcZXcmpNBxDoK8BmDpDrEortJhTaOc64/997K4YzqYlngeJkbDbMN38qFBg==" length="9925010" type="application/octet-stream"/>
+        </item>
     </channel>
 </rss>
