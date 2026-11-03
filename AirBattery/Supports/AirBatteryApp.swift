@@ -17,6 +17,7 @@ let ud = UserDefaults.standard
 var updaterController: SPUStandardUpdaterController!
 var statusBarItem: NSStatusItem!
 var pinnedItems = [NSStatusItem]()
+var pinnedIcons = [String: String]()
 var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
 let systemUUID = getMacDeviceUUID()
@@ -536,13 +537,19 @@ func refeshPinnedBar(unpin: String? = nil) {
     for device in pinnedDevices {
         if let index = pinnedItems.firstIndex(where: { $0.button?.toolTip == device.deviceName }) {
             pinnedItems[index].button?.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
+            let icon = getDeviceIcon(device)
+            if pinnedIcons[device.deviceName] != icon, let image = pinnedImage(named: icon) {
+                pinnedItems[index].button?.image = image
+                pinnedIcons[device.deviceName] = icon
+            }
         } else {
             let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = statusItem.button {
                 let icon = getDeviceIcon(device)
-                let image = NSImage(named: icon)!.resized(to: NSSize(width: 17, height: 17))
-                image.isTemplate = true
-                button.image = image
+                if let image = pinnedImage(named: icon) {
+                    button.image = image
+                    pinnedIcons[device.deviceName] = icon
+                }
                 button.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
                 button.toolTip = device.deviceName
             }
@@ -553,6 +560,13 @@ func refeshPinnedBar(unpin: String? = nil) {
     let expNames = expItems.map({ $0.button?.toolTip ?? "" })
     DispatchQueue.main.async { for e in expItems { NSStatusBar.system.removeStatusItem(e) } }
     pinnedItems.removeAll{ expNames.contains($0.button?.toolTip ?? "") }
+    for name in expNames { pinnedIcons[name] = nil }
+}
+
+private func pinnedImage(named icon: String) -> NSImage? {
+    guard let image = NSImage(named: icon)?.resized(to: NSSize(width: 17, height: 17)) else { return nil }
+    image.isTemplate = true
+    return image
 }
 
 @discardableResult
