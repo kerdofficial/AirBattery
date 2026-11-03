@@ -305,6 +305,7 @@ struct DisplayView: View {
     @AppStorage("batteryPercent") var batteryPercent = "outside"
     @AppStorage("hideLevel") var hideLevel = 90
     @AppStorage("disappearTime") var disappearTime = 20
+    @AppStorage("deviceSortOrder") var deviceSortOrder = "default"
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
     
     var body: some View {
@@ -327,6 +328,17 @@ struct DisplayView: View {
                     Text("after 20min").tag(20)
                     Text("after 40min").tag(40)
                     Text("after 60min").tag(60)
+                }
+                SPicker("Sort Devices", selection: $deviceSortOrder, tips: "Order of the device list in the menu bar, Dock and widgets") {
+                    Text("Default").tag("default")
+                    Text("Name").tag("name")
+                    Text("Lowest Battery First").tag("levelAsc")
+                    Text("Highest Battery First").tag("levelDesc")
+                }.onChange(of: deviceSortOrder) { _ in
+                    DispatchQueue.global().async {
+                        AirBatteryModel.writeData()
+                        WidgetCenter.shared.reloadAllTimelines()
+                    }
                 }
                 SPicker("Hide percentage when above", selection: $hideLevel) {
                     Text("Never").tag(100)

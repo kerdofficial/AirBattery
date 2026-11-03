@@ -160,3 +160,8 @@
 "Through your iPad. First discovery can take 10+ minutes. Beta, may drain your iPad faster." = "透過 iPad 讀取。首次發現可能需要 10 分鐘以上。測試版功能，可能加快 iPad 耗電。";
 "Show earbuds as one device when their levels differ by less than this." = "左右耳機電量差小於此值時合併顯示為一個裝置。";
 "If a device is missing, try \"Discover more BT devices\" or \"Discover more BLE devices\"." = "若有裝置未顯示，請嘗試開啟\"掃描更多常規藍芽裝置\"或\"掃描更多低功耗藍芽裝置\"。";
+"Sort Devices" = "裝置排序";
+"Order of the device list in the menu bar, Dock and widgets" = "選單列、Dock 和小工具中裝置列表的順序";
+"Name" = "名稱";
+"Lowest Battery First" = "電量低的在前";
+"Highest Battery First" = "電量高的在前";

@@ -120,7 +120,44 @@ class AirBatteryModel {
             }
         }
         for dd in list.filter({ !newList.contains($0) }) { newList.append(dd) }
-        return newList.filter({ !checkIfBlocked(name: $0.deviceName) })
+        let visible = newList.filter({ !checkIfBlocked(name: $0.deviceName) })
+        return sortGroups(visible, order: ud.string(forKey: "deviceSortOrder") ?? "default", thisMac: thisMac, reverse: reverse)
+    }
+    
+    static func sortGroups(_ list: [Device], order: String, thisMac: String?, reverse: Bool = false) -> [Device] {
+        guard order != "default" else { return list }
+        let byName = Dictionary(list.map { ($0.deviceName, $0) }, uniquingKeysWith: { first, _ in first })
+        func rootName(_ device: Device) -> String {
+            var current = device
+            var seen: Set<String> = [device.deviceName]
+            while current.parentName != "", current.parentName != thisMac, let parent = byName[current.parentName], seen.insert(parent.deviceName).inserted {
+                current = parent
+            }
+            return current.deviceName
+        }
+        var roots: [Device] = []
+        var members: [String: [Device]] = [:]
+        for device in list {
+            let root = rootName(device)
+            if root == device.deviceName { roots.append(device) } else { members[root, default: []].append(device) }
+        }
+        let indexed = roots.enumerated().sorted { a, b in
+            let (x, y) = (a.element, b.element)
+            switch order {
+            case "levelAsc", "levelDesc":
+                if x.hasBattery != y.hasBattery { return x.hasBattery }
+                if x.batteryLevel != y.batteryLevel { return order == "levelAsc" ? x.batteryLevel < y.batteryLevel : x.batteryLevel > y.batteryLevel }
+            default:
+                let result = x.deviceName.localizedCaseInsensitiveCompare(y.deviceName)
+                if result != .orderedSame { return result == .orderedAscending }
+            }
+            return a.offset < b.offset
+        }
+        var sortedRoots = indexed.map { $0.element }
+        if reverse { sortedRoots.reverse() }
+        let rootNames = Set(sortedRoots.map { $0.deviceName })
+        let orphans = members.filter { !rootNames.contains($0.key) }.values.flatMap { $0 }
+        return sortedRoots.flatMap { [$0] + (members[$0.deviceName] ?? []) } + orphans
     }
     
     static func getByName(_ name: String) -> Device? {
