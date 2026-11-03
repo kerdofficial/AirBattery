@@ -306,7 +306,7 @@ struct popover: View {
             VStack(spacing: 0){
                 if !fromDock {
                     Color.clear
-                        .frame(height: 8.5)
+                        .frame(height: popoverIsModern ? 12 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
@@ -401,8 +401,9 @@ struct popover: View {
                         .onHover{ hovering in overReloButton = hovering }
                     }
                 }
-                .offset(y: -3.5)
-                .padding(.horizontal, 5)
+                .offset(y: popoverIsModern ? 0 : -3.5)
+                .padding(.horizontal, popoverIsModern ? 14 : 5)
+                .padding(.bottom, popoverIsModern ? 6 : 0)
                 .onHover{ hovering in (overStack, overStack2) = (-1, -1) }
                 VStack(alignment:.leading,spacing: 0) {
                     if allDevices.count < 1 && hiddenDevices.count < 1{
@@ -756,15 +757,7 @@ struct popover: View {
                         .onHover{ hovering in overStack = -1 }
                     }
                 }
-                .padding(.horizontal, 6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(Color.secondary, lineWidth: 1)
-                        .padding(.vertical, -1)
-                        .padding(.horizontal, 5)
-                        .opacity(0.23)
-                )
-                .offset(y: 2.5)
+                .modifier(DeviceListChrome())
                 if nearCast {
                     ForEach(allNearcast.indices, id: \.self) { index in
                         let devices = AirBatteryModel.ncGetAll(url: allNearcast[index])
@@ -779,7 +772,7 @@ struct popover: View {
                 }
                 if !fromDock {
                     Color.clear
-                        .frame(height: 8.5)
+                        .frame(height: popoverIsModern ? 12 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
@@ -961,17 +954,37 @@ struct nearcastView: View {
             }
         }
         .onHover{ hovering in overStackNC = mainIndex }
-        .padding(.horizontal, 6)
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(Color.secondary, lineWidth: 1)
-                .padding(.vertical, -1)
-                .padding(.horizontal, 5)
-                .opacity(0.23)
-        )
-        .offset(y: 2.5)
+        .modifier(DeviceListChrome())
     }
 
+}
+
+private var popoverIsModern: Bool {
+    if #available(macOS 26.0, *) { return true }
+    return false
+}
+
+private struct DeviceListChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        if popoverIsModern {
+            let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+            content
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(Color.secondary.opacity(0.23), lineWidth: 1))
+                .padding(.horizontal, 10)
+        } else {
+            content
+                .padding(.horizontal, 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(Color.secondary, lineWidth: 1)
+                        .padding(.vertical, -1)
+                        .padding(.horizontal, 5)
+                        .opacity(0.23)
+                )
+                .offset(y: 2.5)
+        }
+    }
 }
 
 func openAboutPanel() {
