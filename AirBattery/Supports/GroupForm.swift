@@ -36,13 +36,20 @@ struct SForm<Content: View>: View {
 
 struct SGroupBox<Content: View>: View {
     var label: LocalizedStringKey? = nil
+    var footer: LocalizedStringKey? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        if let label {
-            Section { content() } header: { Text(label) }
-        } else {
-            Section { content() }
+        Section {
+            content()
+        } header: {
+            if let label { Text(label) }
+        } footer: {
+            if let footer {
+                Text(footer)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

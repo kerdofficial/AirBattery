@@ -63,7 +63,7 @@ struct SettingsView: View {
                 .navigationTitle(current.title)
                 .toolbar { ToolbarItem { Color.clear.frame(width: 0, height: 0) } }
         }
-        .frame(width: 740, height: 500)
+        .frame(minWidth: 820, idealWidth: 820, minHeight: 620, idealHeight: 620)
         .background(WindowConfigurator { $0.toolbarStyle = .unified })
     }
 
@@ -137,7 +137,7 @@ struct GeneralView: View {
             }
             SGroupBox {
                 SButton("Command Line Tool", buttonTitle: cltInstalled ? "Uninstall" : "Install",
-                        tips: "After installation, you can run \"airbattery\" in yor terminal to list all devices.") {
+                        tips: "After installation, you can run \"airbattery\" in your terminal to list all devices.") {
                     if cltInstalled {
                         CommandLineTool.uninstall { updateCTL() }
                     } else {
@@ -185,20 +185,20 @@ struct NearbilityView: View {
     
     var body: some View {
         SForm {
-            SGroupBox(label: "Scanner") {
-                SToggle("Discover iOS devices via Network", isOn: $readIDevice, tips: "Scan your iPhone / iPad / Apple Watch / VisionPro and other iDevices in your local network.")
-                SToggle("Discover iOS devices via Bluetooth", isOn: $ideviceOverBLE, tips: "Scan your iPhone and iPad (Cellular) via Bluetooth.")
-                SToggle("Discover BT and BLE devices", isOn: $readBTDevice, tips: "Get the battery usage of some Bluetooth peripherals like mouse, keyboard, headphone or etc.\n\nIf some of your device is not shown, try enabling \"Discover more BT devices\" or \"Discover more BLE devices\"")
-                SToggle("Discover Logitech receiver devices", isOn: $readLogitech, tips: "Get the battery usage of Logitech mice, keyboards and headsets connected through a Lightspeed, Unifying or Bolt receiver, and of the PRO X 2 LIGHTSPEED headset.")
-                SToggle("Discover more BT devices", isOn: $readBTHID, tips: "Get the battery usage of more third-party Bluetooth devices\n\nBattery data will be updated when devices are reconnected to the Mac or the Mac wakes up.")
-                SToggle("Discover more BLE devices", isOn: $readBLEDevice, tips: "Try to get the battery usage of any Bluetooth device that AirBattery can find\n\nWARNING: This is a BETA feature and may cause unexpected errors!")
+            SGroupBox(label: "Scanner", footer: "If a device is missing, try \"Discover more BT devices\" or \"Discover more BLE devices\".") {
+                SToggle("Discover iOS devices via Network", isOn: $readIDevice, tips: "iPhone, iPad, Apple Watch and Vision Pro on your local network.")
+                SToggle("Discover iOS devices via Bluetooth", isOn: $ideviceOverBLE, tips: "Nearby iPhone and cellular iPad over Bluetooth.")
+                SToggle("Discover BT and BLE devices", isOn: $readBTDevice, tips: "Mice, keyboards, headphones and other Bluetooth peripherals.")
+                SToggle("Discover Logitech receiver devices", isOn: $readLogitech, tips: "Logitech devices on Lightspeed, Unifying or Bolt receivers, and PRO X 2 headsets.")
+                SToggle("Discover more BT devices", isOn: $readBTHID, tips: "More third-party Bluetooth devices. Updates when they reconnect or the Mac wakes.")
+                SToggle("Discover more BLE devices", isOn: $readBLEDevice, tips: "Any Bluetooth device AirBattery can find. Beta, may cause unexpected errors.")
                     .foregroundColor(.orange)
                     .onChange(of: readBLEDevice) { newValue in
                         if newValue {
                             _ = createAlert(title: "AirBattery Tips".local, message: "If you see a bluetooth pairing request from any device that isn't yours, add it to your blocklist!".local, button1: "OK").runModal()
                         }
                     }
-                SToggle("Apple Pencil from your iPad", isOn: $readPencil, tips: "Read the battery status of the connected Apple Pencil through your iPad\n(It may take 10 minutes or longer to discover the Pencil for the first time)\n\nWARNING: This is a BETA feature and may drain your iPad's battery faster!")
+                SToggle("Apple Pencil from your iPad", isOn: $readPencil, tips: "Through your iPad. First discovery can take 10+ minutes. Beta, may drain your iPad faster.")
                     .foregroundColor(.orange)
             }
             SGroupBox(label: "Others") {
@@ -210,7 +210,7 @@ struct NearbilityView: View {
                             .foregroundColor(.red)
                     }
                 }
-                SSteper("Earbud Merging Threshold", value: $twsMerge, min: 1, max: 99, tips: "If the difference in battery usage between the left and right earbuds is less than this value, AirBattery will show them as one device.")
+                SSteper("Earbud Merging Threshold", value: $twsMerge, min: 1, max: 99, tips: "Show earbuds as one device when their levels differ by less than this.")
             }
         }
     }
