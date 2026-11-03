@@ -157,3 +157,8 @@
 "Uninstall" = "解除安裝";
 "Install" = "安裝";
 "After installation, you can run \"airbattery\" in yor terminal to list all devices." = "安裝此工具後, 在命令列中執行\"airbattery\"即可列出所有裝置.";
+"Widget Background" = "小工具背景";
+"Translucent" = "半透明";
+"Solid" = "純色";
+"Info" = "資訊";
+"Remove" = "移除";

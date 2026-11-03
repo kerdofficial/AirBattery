@@ -26,21 +26,11 @@ struct HoverButton<Content: View>: View {
 }
 
 struct SForm<Content: View>: View {
-    var spacing: CGFloat = 30
-    var noSpacer: Bool = false
     @ViewBuilder let content: () -> Content
     
     var body: some View {
-        VStack(spacing: spacing) {
-            content()
-            if !noSpacer {
-                Spacer().frame(minHeight: 0)
-            }
-        }
-        .padding(.bottom, noSpacer ? 0 : -spacing)
-        .padding()
-        .frame(maxWidth: .infinity)
-        
+        Form { content() }
+            .formStyle(.grouped)
     }
 }
 
@@ -49,52 +39,11 @@ struct SGroupBox<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        GroupBox(label: label != nil ? Text(label!).font(.headline) : nil) {
-            VStack(spacing: 10) { content() }.padding(5)
+        if let label {
+            Section { content() } header: { Text(label) }
+        } else {
+            Section { content() }
         }
-    }
-}
-
-struct SItem<Content: View>: View {
-    var label: LocalizedStringKey? = nil
-    var spacing: CGFloat = 8
-    @ViewBuilder let content: () -> Content
-    
-    var body: some View {
-        HStack(spacing: spacing) {
-            if let label = label { Text(label) }
-            Spacer()
-            content()
-        }.frame(height: 16)
-    }
-}
-
-struct SDivider: View {
-    var body: some View {
-        Divider().opacity(0.5)
-    }
-}
-
-struct SSlider: View {
-    var label: LocalizedStringKey? = nil
-    @Binding var value: Int
-    var range: ClosedRange<Double> = 0...100
-    var width: CGFloat = .infinity
-    
-    var body: some View {
-        HStack {
-            if let label = label {
-                Text(label)
-            }
-            Spacer()
-            Slider(value:
-                    Binding(get: { Double(value) },
-                            set: { newValue in
-                let base: Int = Int(newValue.rounded())
-                let modulo: Int = base % 1
-                value = base - modulo
-            }), in: range).frame(maxWidth: width)
-        }.frame(height: 16)
     }
 }
 
@@ -103,23 +52,19 @@ struct SInfoButton: View {
     @State private var isPresented: Bool = false
     
     var body: some View {
-        Button(action: {
-            isPresented = true
-        }, label: {
+        Button {
+            isPresented.toggle()
+        } label: {
             Image(systemName: "info.circle")
-                .font(.system(size: 15, weight: .light))
-                .opacity(0.5)
-        })
-        .buttonStyle(.plain)
-        .sheet(isPresented: $isPresented) {
-            VStack(alignment: .trailing) {
-                GroupBox { Text(tips).padding() }
-                Button(action: {
-                    isPresented = false
-                }, label: {
-                    Text("OK").frame(width: 30)
-                }).keyboardShortcut(.defaultAction)
-            }.padding()
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Info")
+        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
+            Text(tips)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 280, alignment: .leading)
+                .padding()
         }
     }
 }
@@ -138,13 +83,12 @@ struct SButton: View {
     }
     
     var body: some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Button(buttonTitle,
-                   action: { action() })
-        }.frame(height: 16)
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                Button(buttonTitle, action: action)
+                if let tips { SInfoButton(tips: tips) }
+            }
+        }
     }
 }
 
@@ -164,14 +108,14 @@ struct SField: View {
     }
     
     var body: some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: width)
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                TextField(title, text: $text, prompt: Text(placeholder))
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: width)
+                if let tips { SInfoButton(tips: tips) }
+            }
         }
     }
 }
@@ -184,23 +128,19 @@ struct SPicker<T: Hashable, Content: View, Style: PickerStyle>: View {
     @ViewBuilder let content: () -> Content
     
     init(_ title: LocalizedStringKey, selection: Binding<T>, style: Style = .menu, tips: LocalizedStringKey? = nil, @ViewBuilder content: @escaping () -> Content) {
-            self.title = title
-            self._selection = selection
-            self.style = style
-            self.tips = tips
-            self.content = content
-        }
+        self.title = title
+        self._selection = selection
+        self.style = style
+        self.tips = tips
+        self.content = content
+    }
     
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Picker(selection: $selection, content: { content() }, label: {})
-                .fixedSize()
+        HStack(spacing: 8) {
+            Picker(title, selection: $selection, content: content)
                 .pickerStyle(style)
-                .buttonStyle(.borderless)
-        }.frame(height: 16)
+            if let tips { SInfoButton(tips: tips) }
+        }
     }
 }
 
@@ -216,15 +156,11 @@ struct SToggle: View {
     }
     
     var body: some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Toggle("", isOn: $isOn)
+        HStack(spacing: 8) {
+            Toggle(title, isOn: $isOn)
                 .toggleStyle(.switch)
-                .scaleEffect(0.7)
-                .frame(width: 32)
-        }.frame(height: 16)
+            if let tips { SInfoButton(tips: tips) }
+        }
     }
 }
 
@@ -235,8 +171,10 @@ struct SSteper: View {
     var max: Int
     var width: CGFloat
     var tips: LocalizedStringKey?
+    var reservesTipsSpace: Bool
     
-    init(_ title: LocalizedStringKey, value: Binding<Int>, min: Int = 0, max: Int = 100, width: CGFloat = 45, tips: LocalizedStringKey? = nil) {
+    init(_ title: LocalizedStringKey, value: Binding<Int>, min: Int = 0, max: Int = 100, width: CGFloat = 50, tips: LocalizedStringKey? = nil, reservesTipsSpace: Bool = false) {
+        self.reservesTipsSpace = reservesTipsSpace
         self.title = title
         self._value = value
         self.tips = tips
@@ -246,23 +184,25 @@ struct SSteper: View {
     }
     
     var body: some View {
-        HStack(spacing: 0) {
-            Text(title)
-            Spacer()
-            if let tips = tips {
-                SInfoButton(tips: tips)
-                    .padding(.trailing, 2)
-            }
-            TextField("", value: $value, formatter: NumberFormatter())
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
-                .frame(width: width)
-                .onChange(of: value) { newValue in
-                    if newValue > max { value = max }
-                    if newValue < min { value = min }
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                TextField(title, value: $value, format: .number)
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: width)
+                    .onChange(of: value) { newValue in
+                        if newValue > max { value = max }
+                        if newValue < min { value = min }
+                    }
+                Stepper(title, value: $value, in: min...max)
+                    .labelsHidden()
+                if let tips {
+                    SInfoButton(tips: tips)
+                } else if reservesTipsSpace {
+                    SInfoButton(tips: "").hidden()
                 }
-            Stepper("", value: $value)
-                .padding(.leading, -6)
-        }.frame(height: 16)
+            }
+        }
     }
 }

@@ -41,21 +41,6 @@ struct AirBatteryApp: App {
     var body: some Scene {
         Settings {
             SettingsView()
-                .background(
-                    WindowAccessor(
-                        onWindowOpen: { w in
-                            if let w = w {
-                                //w.level = .floating
-                                w.titlebarSeparatorStyle = .none
-                                guard let nsSplitView = findNSSplitVIew(view: w.contentView),
-                                      let controller = nsSplitView.delegate as? NSSplitViewController else { return }
-                                controller.splitViewItems.first?.canCollapse = false
-                                controller.splitViewItems.first?.minimumThickness = 175
-                                controller.splitViewItems.first?.maximumThickness = 175
-                                w.orderFront(nil)
-                            }
-                        })
-                )
         }
     }
 }

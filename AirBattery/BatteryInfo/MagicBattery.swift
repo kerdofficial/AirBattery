@@ -160,12 +160,7 @@ class MagicBattery {
     func getMagicBattery() {
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
-        let masterPort: mach_port_t
-        if #available(macOS 12.0, *) {
-            masterPort = kIOMainPortDefault // New name in macOS 12 and higher
-        } else {
-            masterPort = kIOMasterPortDefault // Old name in macOS 11 and lower
-        }
+        let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("AppleDeviceManagementHIDEventService")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
         
@@ -182,8 +177,7 @@ class MagicBattery {
     func getOldMagicKeyboard() {
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
-        let masterPort: mach_port_t
-        if #available(macOS 12.0, *) { masterPort = kIOMainPortDefault } else { masterPort = kIOMasterPortDefault }
+        let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("AppleBluetoothHIDKeyboard")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
         if KERN_SUCCESS == kernResult {
@@ -199,8 +193,7 @@ class MagicBattery {
     func getOldMagicTrackpad() {
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
-        let masterPort: mach_port_t
-        if #available(macOS 12.0, *) { masterPort = kIOMainPortDefault } else { masterPort = kIOMasterPortDefault }
+        let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("BNBTrackpadDevice")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
         if KERN_SUCCESS == kernResult {
@@ -216,8 +209,7 @@ class MagicBattery {
     func getOldMagicMouse() {
         var serialPortIterator = io_iterator_t()
         var object : io_object_t
-        let masterPort: mach_port_t
-        if #available(macOS 12.0, *) { masterPort = kIOMainPortDefault } else { masterPort = kIOMasterPortDefault }
+        let masterPort: mach_port_t = kIOMainPortDefault
         let matchingDict : CFDictionary = IOServiceMatching("BNBMouseDevice")
         let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
         if KERN_SUCCESS == kernResult {

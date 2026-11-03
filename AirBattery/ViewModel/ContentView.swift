@@ -1005,20 +1005,3 @@ func openSettingPanel() {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
     }
 }
-
-func findNSSplitVIew(view: NSView?) -> NSSplitView? {
-    var queue = [NSView]()
-    if let root = view {
-        queue.append(root)
-    }
-    while !queue.isEmpty {
-        let current = queue.removeFirst()
-        if current is NSSplitView {
-            return current as? NSSplitView
-        }
-        for subview in current.subviews {
-            queue.append(subview)
-        }
-    }
-    return nil
-}
