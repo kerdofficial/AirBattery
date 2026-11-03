@@ -230,6 +230,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         btdBattery.startScan()
         MagicBattery.shared.startScan()
         LogitechBattery.shared.startScan()
+        AccessoryBattery.shared.startScan()
         IDeviceBattery.shared.startScan()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -304,6 +305,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     
     func refreshWidgetData() {
         LogitechBattery.shared.refresh()
+        AccessoryBattery.shared.refresh()
         SPBluetoothDataModel.shared.refeshData(completion: { _ in
             DispatchQueue.global(qos: .background).async {
                 MagicBattery.shared.scanDevices()
