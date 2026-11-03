@@ -306,9 +306,18 @@ struct popover: View {
     @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
     
+    @ViewBuilder
+    private var dockBackground: some View {
+        if #available(macOS 26.0, *) {
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 7))
+        } else {
+            Color.clear.background(BlurView(material: .menu))
+        }
+    }
+    
     var body: some View {
         ZStack{
-            if fromDock { Color.clear.background(BlurView(material: .menu)) }
+            if fromDock { dockBackground }
             VStack(spacing: 0){
                 if !fromDock {
                     Color.clear
