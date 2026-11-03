@@ -311,6 +311,22 @@ struct DisplayView: View {
     @AppStorage("disappearTime") var disappearTime = 20
     @AppStorage("deviceSortOrder") var deviceSortOrder = "default"
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+    @State private var orderedDevices = [Device]()
+    @State private var previousSortOrder = ud.string(forKey: "deviceSortOrder") ?? "default"
+    
+    private func refreshWidgets() {
+        DispatchQueue.global().async {
+            AirBatteryModel.writeData()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+    
+    @State private var draggedDevice: String?
+    
+    private func move(from: IndexSet, to: Int) {
+        orderedDevices.move(fromOffsets: from, toOffset: to)
+        AirBatteryModel.saveManualOrder(orderedDevices.map { $0.deviceName })
+    }
     
     var body: some View {
         SForm {
@@ -338,11 +354,14 @@ struct DisplayView: View {
                     Text("Name").tag("name")
                     Text("Lowest battery first").tag("levelAsc")
                     Text("Highest battery first").tag("levelDesc")
-                }.onChange(of: deviceSortOrder) { _ in
-                    DispatchQueue.global().async {
-                        AirBatteryModel.writeData()
-                        WidgetCenter.shared.reloadAllTimelines()
+                    Text("Manual").tag("manual")
+                }.onChange(of: deviceSortOrder) { order in
+                    if order == "manual" && AirBatteryModel.manualOrder.isEmpty {
+                        AirBatteryModel.saveManualOrder(AirBatteryModel.rootDevices(order: previousSortOrder).map { $0.deviceName })
                     }
+                    previousSortOrder = order
+                    orderedDevices = AirBatteryModel.rootDevices()
+                    refreshWidgets()
                 }
                 SPicker("Hide percentage when above", selection: $hideLevel) {
                     Text("Never").tag(100)
@@ -353,6 +372,35 @@ struct DisplayView: View {
                         Text("\(hideLevel)%").tag(hideLevel)
                     }
                 }.disabled(!intBattOnStatusBar || (batteryPercent == "hide"))
+            }
+            if deviceSortOrder == "manual" {
+                SGroupBox(label: "Device Order", footer: "Drag devices to set their order. New devices are added at the end.") {
+                    ForEach(Array(orderedDevices.enumerated()), id: \.element.deviceName) { index, device in
+                        HStack(spacing: 8) {
+                            deviceIcon(device)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
+                            Text(device.deviceName)
+                            Spacer()
+                            Image(systemName: "line.3.horizontal")
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                        .onDrag {
+                            draggedDevice = device.deviceName
+                            return NSItemProvider(object: device.deviceName as NSString)
+                        }
+                        .onDrop(of: [.plainText], delegate: DeviceOrderDropDelegate(target: device.deviceName, devices: orderedDevices, dragged: draggedDevice, move: move, finish: refreshWidgets))
+                        .contextMenu {
+                            Button("Move Up") { move(from: IndexSet(integer: index), to: index - 1); refreshWidgets() }
+                                .disabled(index == 0)
+                            Button("Move Down") { move(from: IndexSet(integer: index), to: index + 2); refreshWidgets() }
+                                .disabled(index == orderedDevices.count - 1)
+                        }
+                    }
+                }
             }
             SGroupBox(label: "Dock") {
                     SPicker("Appearance", selection: $appearance) {
@@ -368,6 +416,32 @@ struct DisplayView: View {
                     SToggle("Carousel mode", isOn: $carouselMode, tips: "Cycle through all found devices in the Dock icon.")
             }
         }
+        .onAppear { orderedDevices = AirBatteryModel.rootDevices() }
+        .onReceive(dockTimer) { _ in
+            if deviceSortOrder == "manual" { orderedDevices = AirBatteryModel.rootDevices() }
+        }
+    }
+}
+
+struct DeviceOrderDropDelegate: DropDelegate {
+    let target: String
+    let devices: [Device]
+    let dragged: String?
+    let move: (IndexSet, Int) -> Void
+    let finish: () -> Void
+    
+    func dropEntered(info: DropInfo) {
+        guard let dragged, dragged != target,
+              let from = devices.firstIndex(where: { $0.deviceName == dragged }),
+              let to = devices.firstIndex(where: { $0.deviceName == target }) else { return }
+        move(IndexSet(integer: from), to > from ? to + 1 : to)
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        finish()
+        return true
     }
 }
 
