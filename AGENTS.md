@@ -53,7 +53,17 @@ Before calling a change done, walk this list and say which entries applied:
 - **Settings UI.** Panes in `AirBattery/ViewModel/SettingsView.swift`, row components in `AirBattery/Supports/GroupForm.swift`.
 - **Localization.** English text is the key; add every new user-visible string to `AirBattery/zh-Hans.lproj/Localizable.strings` and `AirBattery/zh-Hant.lproj/Localizable.strings` and run `plutil -lint` on both.
 - **Reverse states.** A device that appears must also age out; HID connect needs removal handling; pin needs unpin; hide needs unhide; a source toggle turned off must stop its work.
+- **Debug log.** New failures and state changes get a `DebugLog` line (see "Debug logging"); verbose detail goes through `DebugLog.verbose`.
 - **Docs.** Update `README.md`, `README_zh.md` and this file when behavior they describe changes.
+
+## Debug logging
+
+`AirBattery/Supports/DebugLog.swift` is the only logging path; do not add `print`, `NSLog` or `os.Logger` calls. It writes anonymized text to `~/Library/Logs/AirBattery/` (5 MB rotation, 4 old files), only in the app; in the widget and `abt` it does nothing. Users export it from the hidden Developer pane (Option-click the Settings button in the popover) and may send it to us, so nothing identifying may reach it:
+
+- `LogMessage` interpolation is private by default: a plain `String` becomes `<redacted>`. Use `\(device:)` for device, computer and peer names, `\(id:)` for MACs, UUIDs, UDIDs and peer IDs, `\(error:)` for errors, and `\(public:)` only for values that cannot identify anyone (model codes, device types, tool names, settings values).
+- Never log raw tool output (`ideviceinfo`, `system_profiler`, `log show`), raw BLE payloads, file paths or any part of `ncGroupID`. A scrubber is the safety net, not the rule.
+- Basic level is always on: keep it to state changes and failures, and log repeating failures on transition, not on every tick. Anything per scan or per update is `DebugLog.verbose`, which costs one Bool check when off.
+- Never call `DebugLog` while holding `AirBatteryModel`'s device lock; pseudonyms read the device list.
 
 ## Development
 
