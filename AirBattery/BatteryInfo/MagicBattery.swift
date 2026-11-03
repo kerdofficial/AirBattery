@@ -90,10 +90,10 @@ class MagicBattery {
     func getDeviceType(_ mac: String, _ def: String) -> String {
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
            let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-           let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+           let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let id = info["device_address"] as? String,
                            let type = info["device_minorType"] as? String{
@@ -109,10 +109,10 @@ class MagicBattery {
     func getDeviceTypeWithPID(_ pid: String, _ def: String) -> String {
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
            let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-           let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+           let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let id = info["device_productID"] as? String,
                            let type = info["device_minorType"] as? String{
@@ -133,18 +133,17 @@ class MagicBattery {
         var productName = ""
         let lastUpdate = Date().timeIntervalSince1970
         if let productProperty = IORegistryEntryCreateCFProperty(object, "DeviceAddress" as CFString, kCFAllocatorDefault, 0) {
-            mac = productProperty.takeRetainedValue() as! String
-            mac = mac.replacingOccurrences(of:"-", with:":").uppercased()
+            if let value = productProperty.takeRetainedValue() as? String { mac = value.replacingOccurrences(of:"-", with:":").uppercased() }
         }
         if let percentProperty = IORegistryEntryCreateCFProperty(object, "BatteryStatusFlags" as CFString, kCFAllocatorDefault, 0) {
-            status = percentProperty.takeRetainedValue() as! Int
+            status = percentProperty.takeRetainedValue() as? Int ?? 0
             if status == 4 { status = 0 }
         }
         if let percentProperty = IORegistryEntryCreateCFProperty(object, "BatteryPercent" as CFString, kCFAllocatorDefault, 0) {
-            percent = percentProperty.takeRetainedValue() as! Int
+            percent = percentProperty.takeRetainedValue() as? Int ?? 0
         }
         if let productProperty = IORegistryEntryCreateCFProperty(object, "Product" as CFString, kCFAllocatorDefault, 0) {
-            productName = productProperty.takeRetainedValue() as! String
+            productName = productProperty.takeRetainedValue() as? String ?? ""
             if productName.contains("Trackpad") { type = "Trackpad" }
             if productName.contains("Keyboard") { type = "Keyboard" }
             if productName.contains("Mouse") { type = "MMouse" }
@@ -232,10 +231,10 @@ class MagicBattery {
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         var productID = "200e"
                         var mainDevice: Device?
@@ -307,10 +306,10 @@ class MagicBattery {
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let level = info["device_batteryLevelMain"] as? String,
                            let id = info["device_address"] as? String,

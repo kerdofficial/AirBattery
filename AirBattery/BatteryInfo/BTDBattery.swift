@@ -16,12 +16,12 @@ class BTDBattery {
     
     func startScan() {
         let interval = TimeInterval(59 * updateInterval)
-        scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
+        scanTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.scanDevices(longScan: false) }
         print("ℹ️ Start scanning Bluetooth HID devices...")
         scanDevices(longScan: true)
     }
     
-    @objc func scanDevices(longScan: Bool = false) {
+    func scanDevices(longScan: Bool = false) {
         Thread.detachNewThread {
             if self.readBTHID {
                 if longScan { BTDBattery.getOtherDevice(last: "2h", timeout: 40) }
@@ -49,7 +49,8 @@ class BTDBattery {
     
     static func getOtherDevice(last: String = "10m", timeout: Int = 0) {
         let parent = ud.string(forKey: "deviceName") ?? "Mac"
-        guard let result = process(path: "/bin/bash", arguments: ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", last], timeout: timeout) else { return }
+        guard let resourcePath = Bundle.main.resourcePath,
+              let result = process(path: "/bin/bash", arguments: ["\(resourcePath)/logReader.sh", "mac", last], timeout: timeout) else { return }
         let connected = getConnected(mac: true)
         var list = [[String : Any]]()
         for line in result.components(separatedBy: "\n") {
