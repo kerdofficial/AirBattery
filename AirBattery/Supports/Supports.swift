@@ -533,8 +533,8 @@ func getHeadphoneModel(_ model: String) -> String {
         return "Airpods 2"
     case "2013":
         return "Airpods 3"
-    case "201B", "2019":
-        ///201B: ANC
+    case "201b", "2019":
+        ///201b: ANC
         ///2019: no ANC
         return "Airpods 4"
     case "2014", "2024":

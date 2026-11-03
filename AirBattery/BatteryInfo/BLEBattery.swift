@@ -150,7 +150,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         if let deviceName = peripheral.name{
             if AirBatteryModel.checkIfBlocked(name: deviceName) { return }
             if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
-                if data[0] != 76 {
+                if !(data.count > 1 && data[0] == 76 && data[1] == 0) {
                     //获取非Apple的普通BLE设备数据
                     if readBLEDevice {
                         if let device = AirBatteryModel.getByName(deviceName) {
@@ -275,7 +275,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 let d = device as! [String: Any]
                 if let n = d.keys.first,n == name,let info = d[n] as? [String: Any] {
                     if let level = info["device_batteryLevel"+side] as? String {
-                        return UInt8(level.replacingOccurrences(of: "%", with: "")) ?? 255
+                        if let value = UInt8(level.replacingOccurrences(of: "%", with: "")), value <= 100 { return value }
                     }
                 }
             }
@@ -319,21 +319,21 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             var caseCharging = 0
             if caseLevel != 255 {
                 caseCharging = caseLevel > 100 ? 1 : 0
-                caseLevel = (caseLevel ^ 128) & caseLevel
+                caseLevel = min((caseLevel ^ 128) & caseLevel, 100)
             }else{ caseLevel = getLevel(deviceName, "Case") }
             
             var leftLevel = data[messageType == "open" ? (flip ? 15 : 14) : 13]
             var leftCharging = 0
             if leftLevel != 255 {
                 leftCharging = leftLevel > 100 ? 1 : 0
-                leftLevel = (leftLevel ^ 128) & leftLevel
+                leftLevel = min((leftLevel ^ 128) & leftLevel, 100)
             }else{ leftLevel = getLevel(deviceName, "Left") }
             
             var rightLevel = data[messageType == "open" ? (flip ? 14 : 15) : 14]
             var rightCharging = 0
             if rightLevel != 255 {
                 rightCharging = rightLevel > 100 ? 1 : 0
-                rightLevel = (rightLevel ^ 128) & rightLevel
+                rightLevel = min((rightLevel ^ 128) & rightLevel, 100)
             }else{ rightLevel = getLevel(deviceName, "Right") }
             
             if !["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"].contains(model) {
