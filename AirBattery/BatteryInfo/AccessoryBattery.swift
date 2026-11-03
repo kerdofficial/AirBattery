@@ -25,18 +25,56 @@ class AccessoryBattery {
 
     func refresh() {
         guard readBTDevice else { return }
-        work.async { AccessoryBattery.read().forEach { AirBatteryModel.updateDevice($0) } }
+        work.async {
+            let reading = AccessoryBattery.read()
+            reading.devices.forEach { AirBatteryModel.updateDevice($0) }
+            reading.airPods.forEach { $0.apply() }
+        }
     }
 
-    static func read() -> [Device] {
+    static func read() -> (devices: [Device], airPods: [AirPodsPublication]) {
         guard let info = IOPSCopyPowerSourcesByType(4)?.takeRetainedValue(),
-              let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return [] }
+              let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return ([], []) }
+        let descriptions = sources.compactMap { IOPSGetPowerSourceDescription(info, $0)?.takeUnretainedValue() as? [String: Any] }
+        return (readOthers(descriptions), airPods(from: descriptions))
+    }
+
+    static func airPods(from descriptions: [[String: Any]]) -> [AirPodsPublication] {
+        let audio = descriptions.filter { ($0["Vendor ID"] as? Int) == appleVendorID }
+        let cases = Dictionary(audio.filter { $0["Accessory Category"] as? String == "Audio Battery Case" }.compactMap { ps in (ps["Group Identifier"] as? String).map { ($0, ps) } }, uniquingKeysWith: { first, _ in first })
+        let now = Date().timeIntervalSince1970
+        return audio.compactMap { ps in
+            guard ["Headset", "Headphones"].contains(ps["Accessory Category"] as? String),
+                  let name = ps[kIOPSNameKey] as? String, !name.isEmpty,
+                  !AirBatteryModel.checkIfBlocked(name: name),
+                  let whole = part(ps) else { return nil }
+            let productID = (ps["Product ID"] as? Int).map { String(format: "%04x", $0) } ?? ""
+            var reading = AirPodsReading(name: name, deviceID: ps["Accessory Identifier"] as? String ?? name, model: getHeadphoneModel(productID))
+            if let parts = ps["Combined Parts"] as? [[String: Any]] {
+                for combined in parts {
+                    let partName = combined["Part Name"] as? String ?? ""
+                    if partName.contains("🅛") || partName.contains("🄻") { reading.left = part(combined) }
+                    if partName.contains("🅡") || partName.contains("🅁") { reading.right = part(combined) }
+                }
+                if let group = ps["Group Identifier"] as? String, let caseSource = cases[group] { reading.casePart = part(caseSource) }
+            } else {
+                reading.whole = whole
+            }
+            return reading.publication(now: now)
+        }
+    }
+
+    private static func part(_ ps: [String: Any]) -> AirPodsPart? {
+        guard let current = ps[kIOPSCurrentCapacityKey] as? Int, let max = ps[kIOPSMaxCapacityKey] as? Int, max > 0 else { return nil }
+        return AirPodsPart(level: Swift.min(100, Swift.max(0, current * 100 / max)), charging: (ps[kIOPSIsChargingKey] as? Bool) == true ? 1 : 0, charged: (ps[kIOPSIsChargedKey] as? Bool) == true)
+    }
+
+    private static func readOthers(_ descriptions: [[String: Any]]) -> [Device] {
         let types = bluetoothTypesByName()
         let parent = ud.string(forKey: "deviceName") ?? "Mac"
         var devices = [Device]()
-        for source in sources {
-            guard let ps = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
-                  let name = ps[kIOPSNameKey] as? String, !name.isEmpty,
+        for ps in descriptions {
+            guard let name = ps[kIOPSNameKey] as? String, !name.isEmpty,
                   let current = ps[kIOPSCurrentCapacityKey] as? Int,
                   let max = ps[kIOPSMaxCapacityKey] as? Int, max > 0,
                   (ps["Vendor ID"] as? Int) != appleVendorID,

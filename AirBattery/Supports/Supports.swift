@@ -541,6 +541,10 @@ func getHeadphoneModel(_ model: String) -> String {
         ///2014: Lightning Case
         ///2024: USB-C Case
         return "Airpods Pro 2"
+    case "2027":
+        return "Airpods Pro 3"
+    case "2030":
+        return "Airpods 5"
     case "2003":
         return "PowerBeats 3"
     case "200d":
@@ -632,9 +636,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpod.right"
             case "Airpods 3":
                 return "airpod3.right"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpod4.right"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodpro.right"
             case "PowerBeats 3":
                 return "beats.powerbeats3.right"
@@ -678,9 +682,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpod.left"
             case "Airpods 3":
                 return "airpod3.left"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpod4.left"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodpro.left"
             case "PowerBeats 3":
                 return "beats.powerbeats3.left"
@@ -724,9 +728,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpods"
             case "Airpods 3":
                 return "airpods3"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpods4"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodspro"
             case "PowerBeats 3":
                 return "beats.powerbeats3"
@@ -770,9 +774,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpods.case.fill"
             case "Airpods 3":
                 return "airpods3.case.fill"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpods4.case.fill"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodspro.case.fill"
             case "PowerBeats 3":
                 return "beats.powerbeatspro.case.fill"

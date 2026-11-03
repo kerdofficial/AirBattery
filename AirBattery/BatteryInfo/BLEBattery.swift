@@ -91,8 +91,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
     @AppStorage("updateInterval") var updateInterval = 1
-    @AppStorage("twsMerge") var twsMerge = 5
-    @AppStorage("neverMergeTws") var neverMergeTws = false
     
     var centralManager: CBCentralManager!
     var peripherals: [CBPeripheral?] = []
@@ -344,27 +342,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 rightLevel = min((rightLevel ^ 128) & rightLevel, 100)
             }else{ rightLevel = getLevel(deviceName, "Right") }
             
-            if !["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"].contains(model) {
-                if caseLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName + " (Case)".local, deviceModel: model, batteryLevel: Int(caseLevel), isCharging: caseCharging, lastUpdate: now)) }
-                
-                if !neverMergeTws && leftLevel != 255 && rightLevel != 255 && (abs(Int(leftLevel) - Int(rightLevel)) < twsMerge) && leftCharging == rightCharging {
-                    AirBatteryModel.removeDevice(deviceName + " 🄻")
-                    AirBatteryModel.removeDevice(deviceName + " 🅁")
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: deviceName + " 🄻🅁", deviceModel: model, batteryLevel: Int(min(leftLevel, rightLevel)), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now))
-                } else {
-                    AirBatteryModel.removeDevice(deviceName + " 🄻🅁")
-                    if leftLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: deviceName + " 🄻", deviceModel: model, batteryLevel: Int(leftLevel), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local ,lastUpdate: now)) }
-                    if rightLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: deviceName + " 🅁", deviceModel: model, batteryLevel: Int(rightLevel), isCharging: rightCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now)) }
-                }
-            } else {
-                if model == "Beats Studio Pro" {
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName, deviceModel: model, batteryLevel: Int(rightLevel), isCharging: rightCharging, lastUpdate: now))
-                } else {
-                    leftLevel = leftLevel != 255 ? leftLevel : 0
-                    rightLevel = rightLevel != 255 ? rightLevel : 0
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName, deviceModel: model, batteryLevel: Int(max(rightLevel, leftLevel)), isCharging: rightCharging + leftCharging > 0 ? 1 : 0, lastUpdate: now))
-                }
-            }
+            func part(_ level: UInt8, _ charging: Int) -> AirPodsPart? { level == 255 ? nil : AirPodsPart(level: Int(level), charging: charging) }
+            AirPodsReading(name: deviceName, deviceID: deviceID, model: model, casePart: part(caseLevel, caseCharging), left: part(leftLevel, leftCharging), right: part(rightLevel, rightCharging)).publication(now: now).apply()
             //print("Type: \(messageType), C:\(caseLevel), L:\(leftLevel), R:\(rightLevel), Flip:\(messageType == "open" ? "\(flip)" : "none")")
             //print("Raw Data: \(data.hexEncodedString())")
         }
@@ -390,5 +369,71 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }
         }
         return paired
+    }
+}
+
+struct AirPodsPart {
+    var level: Int
+    var charging: Int
+    var charged = false
+}
+
+struct AirPodsPublication {
+    var devices: [Device]
+    var removals: [String]
+
+    func apply() {
+        removals.forEach { AirBatteryModel.removeDevice($0) }
+        devices.forEach { AirBatteryModel.updateDevice($0) }
+    }
+}
+
+/// One AirPods/Beats reading from any source. Both BLE and the system power sources build it, so names, types and merging stay identical.
+struct AirPodsReading {
+    static let singleBodyModels: Set<String> = ["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"]
+
+    var name: String
+    var deviceID: String
+    var model: String
+    var casePart: AirPodsPart?
+    var left: AirPodsPart?
+    var right: AirPodsPart?
+    var whole: AirPodsPart?
+
+    func publication(now: Double) -> AirPodsPublication {
+        let caseName = name + " (Case)".local
+        var devices = [Device]()
+        var removals = [String]()
+        let isSingle = Self.singleBodyModels.contains(model) || (casePart == nil && left == nil && right == nil && whole != nil)
+
+        if isSingle {
+            var body = whole
+            if body == nil {
+                if model == "Beats Studio Pro" {
+                    body = right
+                } else if left != nil || right != nil {
+                    body = AirPodsPart(level: max(right?.level ?? 0, left?.level ?? 0), charging: (right?.charging ?? 0) + (left?.charging ?? 0) > 0 ? 1 : 0)
+                }
+            }
+            if let body {
+                devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: name, deviceModel: model, batteryLevel: body.level, isCharging: body.charging, isCharged: body.charged, lastUpdate: now))
+            }
+            return AirPodsPublication(devices: devices, removals: removals)
+        }
+
+        if let casePart {
+            devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: caseName, deviceModel: model, batteryLevel: casePart.level, isCharging: casePart.charging, isCharged: casePart.charged, lastUpdate: now))
+        }
+        let neverMerge = ud.bool(forKey: "neverMergeTws")
+        let threshold = ud.object(forKey: "twsMerge") as? Int ?? 5
+        if !neverMerge, let left, let right, abs(left.level - right.level) < threshold, left.charging == right.charging {
+            removals += [name + " 🄻", name + " 🅁"]
+            devices.append(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: name + " 🄻🅁", deviceModel: model, batteryLevel: min(left.level, right.level), isCharging: left.charging, isCharged: left.charged && right.charged, isHidden: false, parentName: caseName, lastUpdate: now))
+        } else {
+            removals.append(name + " 🄻🅁")
+            if let left { devices.append(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: name + " 🄻", deviceModel: model, batteryLevel: left.level, isCharging: left.charging, isCharged: left.charged, isHidden: false, parentName: caseName, lastUpdate: now)) }
+            if let right { devices.append(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: name + " 🅁", deviceModel: model, batteryLevel: right.level, isCharging: right.charging, isCharged: right.charged, isHidden: false, parentName: caseName, lastUpdate: now)) }
+        }
+        return AirPodsPublication(devices: devices, removals: removals)
     }
 }
