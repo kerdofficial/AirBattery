@@ -1,67 +1,80 @@
-# 
+> AirBattery is a fork of [lihaoyun6/AirBattery](https://github.com/lihaoyun6/AirBattery). The maintained fork by [callieskye](https://github.com/callieskye/Air-Battery) helped a lot in bringing it up to date.
+
 <p align="center">
-<img src="./AirBattery/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="200" height="200" />
+<img src="./AirBattery/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="160" height="160" />
 <h1 align="center">AirBattery</h1>
-<h3 align="center">Get battery usage of all devices on Mac and show them on the Dock / StatusBar / Widgets!<br><a href="./README_zh.md">[中文版本]</a><br><a href="https://lihaoyun6.github.io/airbattery/">[Landing Page]</a></h3> 
+<h3 align="center">The battery level of your Mac and every device around it, in the menu bar, the Dock and widgets.</h3>
 </p>
 
 ## Screenshots
+
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./img/preview_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="./img/preview.png">
-  <img alt="QuickRecorder Screenshots" src="./img/preview.png" width="840"/>
+  <img alt="AirBattery menu bar popover and widgets" src="./img/preview.png" width="840"/>
 </picture>
 </p>
 
-## Installation and Usage
-### System Requirements:
-- macOS 11.0 and Later  
+## Features
 
-### Installation:
-Download the latest installation file [here](../../releases/latest) or install via Homebrew:  
+- **Devices**
+  - This Mac's battery.
+  - AirPods and Beats, with the case and each earbud.
+  - Bluetooth and BLE mice, keyboards, trackpads and headphones.
+  - Logitech devices on Lightspeed, Unifying or Bolt receivers, and Logitech headsets.
+  - iPhone, iPad, Apple Watch and Vision Pro over your network, and iPhone or cellular iPad over Bluetooth.
+  - Apple Pencil through its iPad.
+  - Other Macs and their devices on your network with **Nearcast**.
+- **Where it shows up**
+  - A menu bar popover, with an optional live battery icon in place of the app icon.
+  - The Dock icon and Dock window.
+  - Pinned menu bar items for single devices.
+  - Desktop widgets.
+  - The `airbattery` command line tool and AppleScript.
+- **Battery alerts**
+  - Low and full alerts for any device.
+- **Device list**
+  - Hide devices or block them by name.
+  - Sort by name or battery level, or drag the list into your own order.
+- **Native look**
+  - Device icons from the macOS device catalog.
+  - The macOS 26 design, while older systems keep their look.
 
-```bash
-brew install lihaoyun6/tap/airbattery
-```
+## Installation
 
-### Usage: 
-- After AirBattery is started, it will be displayed on both the Dock and the status bar by default, or only one of them (can be configured)  
+AirBattery requires **macOS 13 or later**.
 
-- AirBattery will automatically search for all devices supported by the **"Nearbility Engine"** without manual configuration.  
-- Click the Dock icon / status bar icon, or add a widget to view the battery usage of your devices.  
-- You can also use the **"Nearcast"** feature to check the battery usage of other Macs and their peripherals in the LAN at any time.  
-- You can also change the status bar icon to a real-time battery icon in preferences, just like the one that comes with the system.  
-- If necessary, you can hide certain devices in the Dock menu or status bar menu, and unhide them at any time.  
+Download the latest notarized build from [Releases](../../releases/latest), unzip it and move `AirBattery.app` to `/Applications`.
 
-## Q&A
-**1. Why is my iPhone / iPad / Apple Watch not showing up?**
-> Please make sure the iPhone / iPad has trusted this Mac ***(and connected the Mac with a data cable at least once while AirBattery is running to pair)***. Then just make sure it is on the same LAN as the Mac.  
+To build it yourself:
 
-**2. Does my Apple Watch need to be pre-connected?**
-> No, when AirBattery detects a paired iPhone via WiFi or USB, it will automatically read the battery data of the Apple Watch paired with it **(iPhone discovered via Bluetooth does not support reading the watch battery!)** 
+1. Install Xcode 27 or later.
+2. Open `AirBattery.xcodeproj`.
+3. Run the `AirBattery` scheme.
 
-**3. Why do some device name have a ⚠️ symbol?**
-> If this symbol appears, it means that the device has not updated its battery information for more than ten minutes, and may be offline or turned off.  
+## Usage
 
-**4. My iPhone is not connected to WiFi, can I get the battery info?**
-> Please install AirBattery v1.1.2 or higher, enable the **`iPhone / iPad(Cellular) over BT`** in the preferences, and keep the device's Bluetooth turned on ***(Only supports iPhone or cellular iPad!)***  
+- AirBattery finds supported devices on its own; there is nothing to pair or configure. The sources it uses can be turned on or off in **Settings > Nearbility**.
+- Click the menu bar or Dock icon to see every device, or add an AirBattery widget to your desktop.
+- Use the **...** button next to a device to set battery alerts, pin it to the menu bar, copy its name or ID, or hide it.
+- Turn on **Nearcast** in Settings, with the same group ID on each Mac, to see your other Macs and their devices.
+- Run `airbattery` in Terminal after installing the command line tool from **Settings > General**.
 
-**5. Why does AirBattery need Bluetooth permission?**
-> AirBattery needs Bluetooth to capture packets from peripheral devices in order to parse their battery information.  
+Something not showing up? See [Troubleshooting](./TROUBLESHOOTING.md).
 
-## Donate
-<img src="./img/donate.png" width="350"/>
+## Third-party components
 
-## Thanks
-[libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) @libimobiledevice  
-> AirBattery uses executable files and runtime libraries compiled from libimobiledevice based on version `73b6fd1`. Feel free to compile and replace them if in doubt.
+| Component | License | Use |
+| --- | --- | --- |
+| [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice), [libplist](https://github.com/libimobiledevice/libplist), [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd), [libimobiledevice-glue](https://github.com/libimobiledevice/libimobiledevice-glue) | LGPL-2.1 | Bundled tools and libraries for iOS devices |
+| [OpenSSL](https://github.com/openssl/openssl) | Apache-2.0 | Bundled library used by libimobiledevice |
+| [comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) | - | Bundled tool for Apple Watch batteries |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) | MIT | App updates |
+| [MultipeerKit](https://github.com/insidegui/MultipeerKit) | BSD-2-Clause | Nearcast |
+| [Swift Argument Parser](https://github.com/apple/swift-argument-parser) | Apache-2.0 | Command line tool |
+| [LinearMouse](https://github.com/linearmouse/linearmouse) | MIT | Logitech HID++ code is adapted from it |
 
-[comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) @nikias  
-> AirBattery uses executable files compiled based on this source code. Feel free to compile and replace them if in doubt.  
+## License
 
-[MultipeerKit](https://github.com/insidegui/MultipeerKit) @insidegui  
-> AirBattery uses MultipeerKit for symmetric multi-end communication within the LAN  
-
-[ChatGPT](https://chat.openai.com) @OpenAI  
-> Some of the code in this project is generated or refactored by ChatGPT.  
+AirBattery is licensed under the [GNU Affero General Public License v3.0](./LICENSE).
