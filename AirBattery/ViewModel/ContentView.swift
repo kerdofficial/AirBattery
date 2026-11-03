@@ -281,6 +281,7 @@ struct popover: View {
     @State private var overQuitButton = false
     @State private var overSettButton = false
     @State private var overReloButton = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var overStack = -1
     @State private var overStack2 = -1
     @State private var overStackNC = -1
@@ -299,6 +300,9 @@ struct popover: View {
         }
     }
     
+    private var rowMenuAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: 0.15) }
+    private var rowMenuTransition: AnyTransition { .move(edge: .trailing).combined(with: .opacity) }
+
     var body: some View {
         ZStack{
             if fromDock { dockBackground }
@@ -484,21 +488,23 @@ struct popover: View {
                                             .font(.system(size: 11))
                                         BatteryView(item: allDevices[index])
                                             .scaleEffect(0.85)
-                                        DeviceActionsMenu(device: allDevices[index],
-                                                                              alertList: $alertList,
-                                                          pinnedList: $pinnedList,
-                                                          onHide: allDevices[index].deviceID == "@MacInternalBattery" ? nil : {
-                                                              hidden.append(index)
-                                                              var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
-                                                              blackList.append(allDevices[index].deviceName)
-                                                              ud.set(blackList, forKey: "blackList")
-                                                              let pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
-                                                              if pinnedList.contains(allDevices[index].deviceName) { refeshPinnedBar() }
-                                                          })
-                                            .opacity(overStack == index ? 1 : 0)
-                                            .allowsHitTesting(overStack == index)
+                                        if overStack == index {
+                                            DeviceActionsMenu(device: allDevices[index],
+                                                                                  alertList: $alertList,
+                                                              pinnedList: $pinnedList,
+                                                              onHide: allDevices[index].deviceID == "@MacInternalBattery" ? nil : {
+                                                                  hidden.append(index)
+                                                                  var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+                                                                  blackList.append(allDevices[index].deviceName)
+                                                                  ud.set(blackList, forKey: "blackList")
+                                                                  let pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+                                                                  if pinnedList.contains(allDevices[index].deviceName) { refeshPinnedBar() }
+                                                              })
+                                                .transition(rowMenuTransition)
+                                        }
                                     }
                                 }
+                                .animation(rowMenuAnimation, value: overStack == index)
                                 .padding(.vertical, 6)
                                 .padding(.horizontal, 10)
                                 .background(overStack == index ? Color.blackWhite.opacity(0.15) : .clear)//.cornerRadius(4)
@@ -763,6 +769,7 @@ struct nearcastView: View {
     var devices: [Device]
     var mainIndex: Int
     @Binding var overStackNC: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var overStack = -1
     @State private var overCopyButton = false
     @State private var overCopyIDButton = false
@@ -771,6 +778,9 @@ struct nearcastView: View {
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
     
+    private var rowMenuAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: 0.15) }
+    private var rowMenuTransition: AnyTransition { .move(edge: .trailing).combined(with: .opacity) }
+
     var body: some View {
         Spacer().frame(height: 8)
         VStack(spacing: 0){
@@ -808,14 +818,16 @@ struct nearcastView: View {
                                 .font(.system(size: 11))
                             BatteryView(item: devices[index])
                                 .scaleEffect(0.85)
-                            DeviceActionsMenu(device: devices[index],
-                                              alertList: $alertList,
-                                              pinnedList: $pinnedList,
-                                              onHide: nil)
-                                .opacity(overStackNC == mainIndex && overStack == index ? 1 : 0)
-                                .allowsHitTesting(overStackNC == mainIndex && overStack == index)
+                            if overStackNC == mainIndex && overStack == index {
+                                DeviceActionsMenu(device: devices[index],
+                                                  alertList: $alertList,
+                                                  pinnedList: $pinnedList,
+                                                  onHide: nil)
+                                    .transition(rowMenuTransition)
+                            }
                         }
                     }
+                    .animation(rowMenuAnimation, value: overStackNC == mainIndex && overStack == index)
                     .padding(.vertical, 6)
                     .padding(.horizontal, 10)
                     .onHover{ hovering in overStack = index }
