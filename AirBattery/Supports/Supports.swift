@@ -13,7 +13,6 @@ let updateInterval = ud.integer(forKey: "updateInterval")
 
 let mainTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 let dockTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-let alertTimer = Timer.publish(every: 300, on: .main, in: .common).autoconnect()
 let nearCastTimer = Timer.publish(every: TimeInterval(60 * updateInterval + Int(arc4random_uniform(10)) - Int(arc4random_uniform(10))), on: .main, in: .common).autoconnect()
 let macID = getMacModelIdentifier()
 let isoFormatter = ISO8601DateFormatter()

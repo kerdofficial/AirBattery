@@ -74,6 +74,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var menu: NSMenu = NSMenu()
     var startTime = Date()
     var widgetRefreshTimer: Timer?
+    var alertCheckTimer: Timer?
     var lastWidgetReload = Date.distantPast
     let nc = NSWorkspace.shared.notificationCenter
     
@@ -239,6 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             WidgetCenter.shared.reloadAllTimelines()
         }
         startWidgetRefresh()
+        startAlertCheck()
         
         //menu.delegate = self
         //statusMenu.delegate = self
@@ -301,6 +303,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         timer.tolerance = 2
         RunLoop.main.add(timer, forMode: .common)
         widgetRefreshTimer = timer
+    }
+    
+    func startAlertCheck() {
+        let timer = Timer(timeInterval: 300, repeats: true) { _ in batteryAlert() }
+        timer.tolerance = 10
+        RunLoop.main.add(timer, forMode: .common)
+        alertCheckTimer = timer
     }
     
     func refreshWidgetData() {
