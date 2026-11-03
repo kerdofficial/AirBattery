@@ -36,6 +36,7 @@ struct Device: Hashable, Codable {
     var parentName: String = ""
     var lastUpdate: Double
     var realUpdate: Double = 0.0
+    var iconSymbol: String?
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(hasBattery)
@@ -53,41 +54,51 @@ struct Device: Hashable, Codable {
         hasher.combine(lastUpdate)
         hasher.combine(realUpdate)
         hasher.combine(parentName)
+        hasher.combine(iconSymbol)
     }
 }
 
 class AirBatteryModel {
-    static var lock = false
-    static var Devices: [Device] = []
+    private static let devicesLock = NSLock()
+    private static var _devices: [Device] = []
+    static var Devices: [Device] {
+        get { devicesLock.lock(); defer { devicesLock.unlock() }; return _devices }
+        set { devicesLock.lock(); defer { devicesLock.unlock() }; _devices = newValue }
+    }
     static let machineType = ud.string(forKey: "machineType") ?? "Mac"
     static let key = "com.kerdofficial.AirBattery.widget"
     
     static func updateDevice(_ device: Device) {
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
         //if blockedItems.contains(device.deviceName) { return }
-        if lock { return }
-        lock = true
+        devicesLock.lock(); defer { devicesLock.unlock() }
         //self.Devices.removeAll(where: {blockedItems.contains($0.deviceName)})
-        if let index = self.Devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
-            self.Devices[index] = device
+        if let index = _devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
+            _devices[index] = device
         } else {
-            self.Devices.append(device)
+            _devices.append(device)
         }
-        lock = false
     }
     
     static func hideDevice(_ name: String) {
-        for index in Devices.indices {
-            if Devices[index].deviceName == name {
-                Devices[index].isHidden = true
+        devicesLock.lock(); defer { devicesLock.unlock() }
+        for index in _devices.indices {
+            if _devices[index].deviceName == name {
+                _devices[index].isHidden = true
             }
         }
     }
     
+    static func removeDevice(_ name: String) {
+        devicesLock.lock(); defer { devicesLock.unlock() }
+        _devices.removeAll { $0.deviceName == name }
+    }
+    
     static func unhideDevice(_ name: String) {
-        for index in Devices.indices {
-            if Devices[index].deviceName == name {
-                Devices[index].isHidden = false
+        devicesLock.lock(); defer { devicesLock.unlock() }
+        for index in _devices.indices {
+            if _devices[index].deviceName == name {
+                _devices[index].isHidden = false
             }
         }
     }
@@ -103,7 +114,9 @@ class AirBatteryModel {
         let disappearTime = (ud.object(forKey: "disappearTime") ?? 20) as! Int
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let now = Double(Date().timeIntervalSince1970)
-        var list = (reverse ? Array(Devices.reversed()) : Devices).filter { (now - $0.lastUpdate < Double(disappearTime * 60)) }
+        let neverMergeTws = ud.bool(forKey: "neverMergeTws")
+        let snapshot = Devices
+        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter { (disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60)) && !(neverMergeTws && $0.deviceType == "ap_pod_all") }
         if !noFilter { list = list.filter { !blackList.contains($0.deviceName) && !$0.isHidden } }
         var newList: [Device] = list.filter({ $0.parentName == thisMac })
         for d in list {
@@ -115,7 +128,44 @@ class AirBatteryModel {
             }
         }
         for dd in list.filter({ !newList.contains($0) }) { newList.append(dd) }
-        return newList.filter({ !checkIfBlocked(name: $0.deviceName) })
+        let visible = newList.filter({ !checkIfBlocked(name: $0.deviceName) })
+        return sortGroups(visible, order: ud.string(forKey: "deviceSortOrder") ?? "default", thisMac: thisMac, reverse: reverse)
+    }
+    
+    static func sortGroups(_ list: [Device], order: String, thisMac: String?, reverse: Bool = false) -> [Device] {
+        guard order != "default" else { return list }
+        let byName = Dictionary(list.map { ($0.deviceName, $0) }, uniquingKeysWith: { first, _ in first })
+        func rootName(_ device: Device) -> String {
+            var current = device
+            var seen: Set<String> = [device.deviceName]
+            while current.parentName != "", current.parentName != thisMac, let parent = byName[current.parentName], seen.insert(parent.deviceName).inserted {
+                current = parent
+            }
+            return current.deviceName
+        }
+        var roots: [Device] = []
+        var members: [String: [Device]] = [:]
+        for device in list {
+            let root = rootName(device)
+            if root == device.deviceName { roots.append(device) } else { members[root, default: []].append(device) }
+        }
+        let indexed = roots.enumerated().sorted { a, b in
+            let (x, y) = (a.element, b.element)
+            switch order {
+            case "levelAsc", "levelDesc":
+                if x.hasBattery != y.hasBattery { return x.hasBattery }
+                if x.batteryLevel != y.batteryLevel { return order == "levelAsc" ? x.batteryLevel < y.batteryLevel : x.batteryLevel > y.batteryLevel }
+            default:
+                let result = x.deviceName.localizedCaseInsensitiveCompare(y.deviceName)
+                if result != .orderedSame { return result == .orderedAscending }
+            }
+            return a.offset < b.offset
+        }
+        var sortedRoots = indexed.map { $0.element }
+        if reverse { sortedRoots.reverse() }
+        let rootNames = Set(sortedRoots.map { $0.deviceName })
+        let orphans = members.filter { !rootNames.contains($0.key) }.values.flatMap { $0 }
+        return sortedRoots.flatMap { [$0] + (members[$0.deviceName] ?? []) } + orphans
     }
     
     static func getByName(_ name: String) -> Device? {
@@ -157,7 +207,8 @@ class AirBatteryModel {
         return url
     }
     
-    static func writeData(){
+    @discardableResult
+    static func writeData() -> [Device] {
         //let showMac = ud.object(forKey: "showMacOnWidget") as? Bool ?? true
         let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
         
@@ -170,6 +221,7 @@ class AirBatteryModel {
         } catch {
             dataLog.error("Write data.json failed: \(error.localizedDescription, privacy: .public)")
         }
+        return devices
     }
     
     static func readData(url: URL = getJsonURL()) -> [Device]{
@@ -189,18 +241,23 @@ class AirBatteryModel {
         let now = Double(Date().timeIntervalSince1970)
         var localDevices = getAll().map({ $0.deviceName })
         if fromWidget { localDevices = readData().map({ $0.deviceName }) }
-        var list = devices.filter{(now - $0.lastUpdate < Double(disappearTime * 60))}.filter({!localDevices.contains($0.deviceName)})
+        var list = devices.filter{ disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60) }.filter({!localDevices.contains($0.deviceName)})
         if let first = devices.first { if !list.contains(first) && list.count != 0 { list.insert(first, at: 0) }}
         if let first = list.first { if list.count == 1 && !first.hasBattery { return [] }}
         return list
     }
     
+    static func baseDeviceName(_ name: String) -> String {
+        for suffix in [" (Case)".local, " (Case)", " 🄻🅁", " 🄻", " 🅁"] where name.hasSuffix(suffix) {
+            return String(name.dropLast(suffix.count))
+        }
+        return name
+    }
+    
     static func checkIfBlocked(name: String) -> Bool {
         let whitelistMode = ud.bool(forKey: "whitelistMode")
         let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        if (blockedItems.contains(name) && !whitelistMode) || (!blockedItems.contains(name) && whitelistMode) {
-            return true
-        }
-        return false
+        let listed = blockedItems.contains(name) || blockedItems.contains(baseDeviceName(name))
+        return listed != whitelistMode
     }
 }

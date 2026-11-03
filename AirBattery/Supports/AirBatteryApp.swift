@@ -17,6 +17,7 @@ let ud = UserDefaults.standard
 var updaterController: SPUStandardUpdaterController!
 var statusBarItem: NSStatusItem!
 var pinnedItems = [NSStatusItem]()
+var pinnedIcons = [String: String]()
 var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
 let systemUUID = getMacDeviceUUID()
@@ -26,6 +27,7 @@ let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var updateDelay = 1
 var keepAliveActivity: NSObjectProtocol? = nil
+let btConnectQueue = DispatchQueue(label: "com.kerdofficial.AirBattery.btconnect", qos: .background)
 
 @main
 struct AirBatteryApp: App {
@@ -73,7 +75,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var menu: NSMenu = NSMenu()
     var startTime = Date()
     var widgetRefreshTimer: Timer?
+    var alertCheckTimer: Timer?
+    var iDeviceScanTimer: Timer?
     var lastWidgetReload = Date.distantPast
+    private var lastWidgetSignature: [String] = []
+    private var pendingWidgetSignature: [String] = []
+    private var widgetReloadWork: DispatchWorkItem?
+    private let widgetReloadMinGap: TimeInterval = 15
     let nc = NSWorkspace.shared.notificationCenter
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -180,6 +188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         
         updateDelay = updateInterval
         machineType = getMacDeviceType()
+        DispatchQueue.global(qos: .utility).async { macIconSymbol = DeviceSymbols.symbol(modelCode: macID) }
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
@@ -229,6 +238,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         btdBattery.startScan()
         MagicBattery.shared.startScan()
         LogitechBattery.shared.startScan()
+        AccessoryBattery.shared.startScan()
         IDeviceBattery.shared.startScan()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -237,6 +247,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             WidgetCenter.shared.reloadAllTimelines()
         }
         startWidgetRefresh()
+        startAlertCheck()
+        startIDeviceScan()
         
         //menu.delegate = self
         //statusMenu.delegate = self
@@ -274,7 +286,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             let tipID = "ab.docktile-power.note"
             let never = ud.object(forKey: "neverRemindMe") as! [String]
             if !never.contains(tipID) {
-                let alert = createAlert(title: "AirBattery Tips".local, message: "Displaying AirBattery on the Dock will consume more power, it is better to use Menu Bar mode or Widgets.".local, button1: "Don't remind me again", button2: "OK")
+                let alert = createAlert(title: "AirBattery Tips".local, message: "Displaying AirBattery in the Dock uses more power. The menu bar or widgets are a more efficient choice.".local, button1: "Don't Remind Me Again", button2: "OK")
                 if alert.runModal() == .alertFirstButtonReturn { ud.setValue(never + [tipID], forKey: "neverRemindMe") }
             }
         }
@@ -283,7 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             let tipID = "ab.third-party-device.note"
             let never = ud.object(forKey: "neverRemindMe") as! [String]
             if !never.contains(tipID) {
-                let alert = createAlert(title: "AirBattery Tips".local, message: "If some of your devices shows battery level in the Bluetooth menu, but AirBattery doesn't find it. Try disconnecting and reconnecting it, and wait a few minutes.".local, button1: "Don't remind me again", button2: "OK")
+                let alert = createAlert(title: "AirBattery Tips".local, message: "If a device shows its battery level in the Bluetooth menu but AirBattery does not find it, try disconnecting and reconnecting it, then wait a few minutes.".local, button1: "Don't Remind Me Again", button2: "OK")
                 if alert.runModal() == .alertFirstButtonReturn { ud.setValue(never + [tipID], forKey: "neverRemindMe") }
             }
             // Bootstrap Enhanced HID scan incrementally with a short initial window
@@ -301,8 +313,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         widgetRefreshTimer = timer
     }
     
+    func startIDeviceScan() {
+        let timer = Timer(timeInterval: 5, repeats: true) { _ in IDeviceBattery.shared.scanDevices() }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        iDeviceScanTimer = timer
+    }
+    
+    func startAlertCheck() {
+        let timer = Timer(timeInterval: 300, repeats: true) { _ in batteryAlert() }
+        timer.tolerance = 10
+        RunLoop.main.add(timer, forMode: .common)
+        alertCheckTimer = timer
+    }
+    
     func refreshWidgetData() {
         LogitechBattery.shared.refresh()
+        AccessoryBattery.shared.refresh()
         SPBluetoothDataModel.shared.refeshData(completion: { _ in
             DispatchQueue.global(qos: .background).async {
                 MagicBattery.shared.scanDevices()
@@ -314,12 +341,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     }
     
     func publishWidgetData() {
-        AirBatteryModel.writeData()
+        let signature = AirBatteryModel.writeData()
+            .map { "\($0.deviceName)|\($0.batteryLevel)|\($0.isCharging)|\($0.isCharged)" }
         DispatchQueue.main.async {
-            guard self.widgetInterval != -1, Date().timeIntervalSince(self.lastWidgetReload) >= TimeInterval(60 * max(1, self.updateInterval)) else { return }
-            self.lastWidgetReload = Date()
-            WidgetCenter.shared.reloadAllTimelines()
+            guard self.widgetInterval != -1, signature != self.lastWidgetSignature else { return }
+            self.pendingWidgetSignature = signature
+            self.reloadWidgetsIfChanged()
         }
+    }
+    
+    private func reloadWidgetsIfChanged() {
+        guard widgetReloadWork == nil else { return }
+        let wait = widgetReloadMinGap - Date().timeIntervalSince(lastWidgetReload)
+        if wait > 0 {
+            let work = DispatchWorkItem { [weak self] in
+                self?.widgetReloadWork = nil
+                self?.reloadWidgetsIfChanged()
+            }
+            widgetReloadWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
+            return
+        }
+        guard widgetInterval != -1, pendingWidgetSignature != lastWidgetSignature else { return }
+        lastWidgetSignature = pendingWidgetSignature
+        lastWidgetReload = Date()
+        WidgetCenter.shared.reloadAllTimelines()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -350,10 +396,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     if AirBatteryModel.checkIfBlocked(name: name) { return }
                     //if let prefix = getFirstNCharacters(of: macAdd, count: 8) {
                         print("ℹ️ \(name) (\(macAdd)) connected")
-                        DispatchQueue.global(qos: .background).async {
+                        let isAppleDevice = device.isAppleDevice
+                        btConnectQueue.async {
                             usleep(2500000)
                             //if !appleMacPrefix.contains(prefix) {
-                            if !device.isAppleDevice {
+                            if !isAppleDevice {
                                 SPBluetoothDataModel.shared.refeshData { _ in
                                     LogReader.shared.run(.connect)
                                     MagicBattery.shared.getIOBTBattery()
@@ -514,13 +561,19 @@ func refeshPinnedBar(unpin: String? = nil) {
     for device in pinnedDevices {
         if let index = pinnedItems.firstIndex(where: { $0.button?.toolTip == device.deviceName }) {
             pinnedItems[index].button?.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
+            let icon = deviceIconSymbol(device) ?? getDeviceIcon(device)
+            if pinnedIcons[device.deviceName] != icon, let image = pinnedImage(for: device) {
+                pinnedItems[index].button?.image = image
+                pinnedIcons[device.deviceName] = icon
+            }
         } else {
             let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = statusItem.button {
-                let icon = getDeviceIcon(device)
-                let image = NSImage(named: icon)!.resized(to: NSSize(width: 17, height: 17))
-                image.isTemplate = true
-                button.image = image
+                let icon = deviceIconSymbol(device) ?? getDeviceIcon(device)
+                if let image = pinnedImage(for: device) {
+                    button.image = image
+                    pinnedIcons[device.deviceName] = icon
+                }
                 button.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
                 button.toolTip = device.deviceName
             }
@@ -531,6 +584,13 @@ func refeshPinnedBar(unpin: String? = nil) {
     let expNames = expItems.map({ $0.button?.toolTip ?? "" })
     DispatchQueue.main.async { for e in expItems { NSStatusBar.system.removeStatusItem(e) } }
     pinnedItems.removeAll{ expNames.contains($0.button?.toolTip ?? "") }
+    for name in expNames { pinnedIcons[name] = nil }
+}
+
+private func pinnedImage(for device: Device) -> NSImage? {
+    guard let image = deviceNSImage(device)?.resized(to: NSSize(width: 17, height: 17)) else { return nil }
+    image.isTemplate = true
+    return image
 }
 
 @discardableResult

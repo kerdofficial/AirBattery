@@ -28,11 +28,11 @@ struct AlertInputView: View {
     @State private var overCloseButton = false
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
 
-    var iconName: String
+    var icon: Image
     var onConfirm: (btAlert) -> Void
     var onCancel: () -> Void
 
-    init(alert: btAlert, iconName: String, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
+    init(alert: btAlert, icon: Image, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
         _name = State(initialValue: alert.name)
         _full = State(initialValue: alert.full)
         _low = State(initialValue: alert.low)
@@ -40,7 +40,7 @@ struct AlertInputView: View {
         _lowOn = State(initialValue: alert.lowOn)
         _fullSound = State(initialValue: alert.fullSound)
         _lowSound = State(initialValue: alert.lowSound)
-        self.iconName = iconName
+        self.icon = icon
         self.onConfirm = onConfirm
         self.onCancel = onCancel
     }
@@ -51,7 +51,7 @@ struct AlertInputView: View {
                 .background(BlurView(material: .menu))
                 .cornerRadius(14)*/
             VStack {
-                Image(iconName)
+                icon
                     .resizable()
                     .scaledToFit()
                     .frame(height: 40)
@@ -62,7 +62,7 @@ struct AlertInputView: View {
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                 VStack {
                     HStack(spacing: 4) {
-                        Toggle("Notify me when battery charged above:", isOn: $fullOn)
+                        Toggle("Notify me when the battery charges above:", isOn: $fullOn)
                             .toggleStyle(.checkbox)
                             .foregroundColor(fullOn ? .primary : .secondary)
                         Spacer()
@@ -91,7 +91,7 @@ struct AlertInputView: View {
                     }), in: 1...99).disabled(!fullOn)
                     Spacer().frame(height: 14)
                     HStack(spacing: 4) {
-                        Toggle("Notify me when battery goes below:", isOn: $lowOn)
+                        Toggle("Notify me when the battery falls below:", isOn: $lowOn)
                             .toggleStyle(.checkbox)
                             .foregroundColor(lowOn ? .primary : .secondary)
                         Spacer()
@@ -173,9 +173,9 @@ struct AlertInputView: View {
 class AlertWindowController {
     var window: NNSWindow?
 
-    func showAlert(with alert: btAlert, iconName: String, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
+    func showAlert(with alert: btAlert, icon: Image, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
         // 创建 AlertInputView，传入可选的 btAlert 对象
-        let alertView = AlertInputView(alert: alert, iconName: iconName, onConfirm: { newAlert in
+        let alertView = AlertInputView(alert: alert, icon: icon, onConfirm: { newAlert in
             // 确认操作后，关闭窗口并返回数据
             self.window?.close()
             onConfirm(newAlert)
@@ -222,18 +222,18 @@ func batteryAlert() {
     for device in allDevices.filter({ alertList.map({$0.name}).contains($0.deviceName) }) {
         if let alert = alertList.first(where: { $0.name == device.deviceName }) {
             if device.batteryLevel < alert.low && device.isCharging == 0 && alert.lowOn {
-                if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { return }
+                if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Low Battery".local
-                let body = String(format: "\"%@\" remaining battery %d%%".local, device.deviceName, device.batteryLevel)
+                let body = String(format: "\"%@\" has %d%% battery remaining.".local, device.deviceName, device.batteryLevel)
                 createNotification(title: title, message: body, alertSound: alert.lowSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }
                 }
             }
             if device.batteryLevel > alert.full && device.isCharging != 0 && alert.fullOn {
-                if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { return }
+                if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Fully Charged".local
-                let body = String(format: "\"%@\" battery has reached %d%%".local, device.deviceName, device.batteryLevel)
+                let body = String(format: "The battery of \"%@\" has reached %d%%.".local, device.deviceName, device.batteryLevel)
                 createNotification(title: title, message: body, alertSound: alert.fullSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }

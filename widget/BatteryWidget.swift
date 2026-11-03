@@ -142,7 +142,7 @@ struct LargeWidgetView : View {
     
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
+            Text("AirBattery is not running.\nLaunch the app to make the widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -181,7 +181,7 @@ struct LargeWidgetView : View {
                             let item = entry.data[index]
                             VStack{
                                 HStack() {
-                                    Image(getDeviceIcon(item))
+                                    deviceIcon(item)
                                         .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                     //.foregroundColor(.blackWhite)
@@ -226,7 +226,7 @@ struct SmallWidgetView : View {
     
     var body: some View {
         if !entry.mainApp {
-            Text("AirBattery is not running\nLaunch the app to make\nthe widget work")
+            Text("AirBattery is not running.\nLaunch the app to make\nthe widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -292,7 +292,7 @@ struct SmallWidgetView : View {
                                             .widgetFill(Color(getPowerColor(item)))
                                     }.rotationEffect(Angle(degrees: 129.6))
                                     
-                                    Image(getDeviceIcon(item))
+                                    deviceIcon(item)
                                         .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                         //.foregroundColor(.blackWhite)
@@ -346,7 +346,7 @@ struct SmallWidgetView : View {
                                             .widgetFill(Color(getPowerColor(item)))
                                     }.rotationEffect(Angle(degrees: 129.6))
                                     
-                                    Image(getDeviceIcon(item))
+                                    deviceIcon(item)
                                         .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                         //.foregroundColor(.blackWhite)
@@ -385,7 +385,7 @@ struct MediumWidgetView : View {
 
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
+            Text("AirBattery is not running.\nLaunch the app to make the widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -430,7 +430,7 @@ struct MediumWidgetView : View {
                                             .widgetFill(Color(getPowerColor(item)))
                                     }.rotationEffect(Angle(degrees: 270.0))
                                     
-                                    Image(getDeviceIcon(item))
+                                    deviceIcon(item)
                                         .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                         //.foregroundColor(.blackWhite)
@@ -516,7 +516,7 @@ struct batteryWidget: Widget {
                 .appWidgetBackground()
         }
         .configurationDisplayName("Batteries")
-        .description("Displays battery usage for your devices from AirBattery")
+        .description("Shows the battery levels of your devices.")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }

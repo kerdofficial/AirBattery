@@ -45,7 +45,7 @@ struct item: Codable, Equatable {
 struct airbattery: ParsableCommand {
     static var configuration = CommandConfiguration(version: "0.1.0")
     
-    @Flag(name: .shortAndLong, help: "Including Nearcast devices")
+    @Flag(name: .shortAndLong, help: "Include Nearcast devices")
     var nearcast: Bool = false
     
     @Flag(name: .shortAndLong, help: "Print in JSON format")
@@ -58,7 +58,7 @@ struct airbattery: ParsableCommand {
         let arguments = [json, csv]
         let activeCount = arguments.filter { $0 }.count
         if activeCount > 1 {
-            throw ValidationError("These options cannot be used together!")
+            throw ValidationError("These options cannot be used together.")
         }
     }
 
@@ -87,7 +87,7 @@ struct airbattery: ParsableCommand {
                     print(jsonString)
                 }
             } catch {
-                print("Get JSON error：\(error)")
+                print("Failed to read JSON: \(error)")
             }
             return
         }

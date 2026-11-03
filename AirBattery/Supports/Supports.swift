@@ -13,18 +13,19 @@ let updateInterval = ud.integer(forKey: "updateInterval")
 
 let mainTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 let dockTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-let alertTimer = Timer.publish(every: 300, on: .main, in: .common).autoconnect()
 let nearCastTimer = Timer.publish(every: TimeInterval(60 * updateInterval + Int(arc4random_uniform(10)) - Int(arc4random_uniform(10))), on: .main, in: .common).autoconnect()
 let macID = getMacModelIdentifier()
+var macIconSymbol: String?
 let isoFormatter = ISO8601DateFormatter()
 var lowPowerNoteDelay = [String: Double]()
 
 // Serialized incremental log reader for Enhanced HID scans
 class LogReader {
     static let shared = LogReader()
+    static let endMarker = "#END"
 
     @AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("logReaderLastTS") var lastTS: String = ""   // e.g. "2025-07-01 12:34:56 +0000"
+    @AppStorage("logReaderLastTS") var lastTS: String = ""   // e.g. "2025-07-01 12:34:56+0000"
 
     private var isRunning = false
     private var queued = false
@@ -32,7 +33,7 @@ class LogReader {
     private let fmt: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZZZ"
+        f.dateFormat = "yyyy-MM-dd HH:mm:ssZ"
         return f
     }()
 
@@ -47,17 +48,16 @@ class LogReader {
 
         let args: [String]
         if let start = computeStart(trigger) {
-            setenv("START_TS", start, 1)
-            args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", "10m"]
+            args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", "10m", start]
         } else {
-            unsetenv("START_TS")
             let win = (trigger == .bootstrap) ? "20m" : (trigger == .wake ? "3m" : "2m")
             args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", win]
         }
 
-        let out = process(path: "/bin/bash", arguments: args, timeout: 5)
+        let readStart = Date()
+        let out = process(path: "/bin/bash", arguments: args, timeout: 20)
         parseAndUpdate(output: out)
-        advanceLastTS()
+        if let out = out, out.hasSuffix(LogReader.endMarker) { advanceLastTS(readStart) }
 
         lock.lock()
         isRunning = false
@@ -76,13 +76,14 @@ class LogReader {
             return fmt.string(from: t)
         }
         if let prev = fmt.date(from: lastTS) {
-            return fmt.string(from: prev.addingTimeInterval(-2))
+            let oldest = Date(timeIntervalSinceNow: -10 * 60)
+            return fmt.string(from: max(prev.addingTimeInterval(-2), oldest))
         }
         return nil
     }
 
-    private func advanceLastTS() {
-        lastTS = fmt.string(from: Date().addingTimeInterval(-2))
+    private func advanceLastTS(_ readStart: Date) {
+        lastTS = fmt.string(from: readStart.addingTimeInterval(-2))
     }
 
     private func parseAndUpdate(output: String?) {
@@ -268,7 +269,7 @@ func createAlert(level: NSAlert.Style = .warning, title: String, message: String
 func registerNotificationCategory() {
     let delayAction = UNNotificationAction(
         identifier: "DELAY_30_MIN",
-        title: "Snooze for 30 minutes".local,
+        title: "Snooze for 30 Minutes".local,
         options: []
     )
 
@@ -374,7 +375,7 @@ func getMonoNum(_ num: Int, count: Int = 3, bold: Bool = false) -> String {
 func ib2ab(_ ib: iBattery) -> Device {
     @AppStorage("machineType") var machineType = "mac"
     @AppStorage("deviceName") var deviceName = "Mac"
-    return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970))
+    return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970), iconSymbol: macIconSymbol)
 }
 
 func sliceList(data: [Device], length: Int, count: Int) -> [Device] {
@@ -533,14 +534,18 @@ func getHeadphoneModel(_ model: String) -> String {
         return "Airpods 2"
     case "2013":
         return "Airpods 3"
-    case "201B", "2019":
-        ///201B: ANC
+    case "201b", "2019", "201c", "201e", "2020":
+        ///201b: ANC
         ///2019: no ANC
         return "Airpods 4"
     case "2014", "2024":
         ///2014: Lightning Case
         ///2024: USB-C Case
         return "Airpods Pro 2"
+    case "2027":
+        return "Airpods Pro 3"
+    case "2030", "2036":
+        return "Airpods 5"
     case "2003":
         return "PowerBeats 3"
     case "200d":
@@ -568,6 +573,21 @@ func getHeadphoneModel(_ model: String) -> String {
     default:
         return "Headphones"
     }
+}
+
+func deviceIconSymbol(_ d: Device) -> String? {
+    guard let symbol = d.iconSymbol, NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil else { return nil }
+    return symbol
+}
+
+func deviceIcon(_ d: Device) -> Image {
+    if let symbol = deviceIconSymbol(d) { return Image(systemName: symbol) }
+    return Image(getDeviceIcon(d))
+}
+
+func deviceNSImage(_ d: Device) -> NSImage? {
+    if let symbol = deviceIconSymbol(d) { return NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
+    return NSImage(named: getDeviceIcon(d))
 }
 
 func getDeviceIcon(_ d: Device) -> String {
@@ -632,9 +652,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpod.right"
             case "Airpods 3":
                 return "airpod3.right"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpod4.right"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodpro.right"
             case "PowerBeats 3":
                 return "beats.powerbeats3.right"
@@ -678,9 +698,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpod.left"
             case "Airpods 3":
                 return "airpod3.left"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpod4.left"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodpro.left"
             case "PowerBeats 3":
                 return "beats.powerbeats3.left"
@@ -724,9 +744,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpods"
             case "Airpods 3":
                 return "airpods3"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpods4"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodspro"
             case "PowerBeats 3":
                 return "beats.powerbeats3"
@@ -770,9 +790,9 @@ func getDeviceIcon(_ d: Device) -> String {
                 return "airpods.case.fill"
             case "Airpods 3":
                 return "airpods3.case.fill"
-            case "Airpods 4":
+            case "Airpods 4", "Airpods 5":
                 return "airpods4.case.fill"
-            case "Airpods Pro 2":
+            case "Airpods Pro 2", "Airpods Pro 3":
                 return "airpodspro.case.fill"
             case "PowerBeats 3":
                 return "beats.powerbeatspro.case.fill"
@@ -805,7 +825,7 @@ func getDeviceIcon(_ d: Device) -> String {
         return "airpodspro.case.fill"
     case "mac", "applevirtualmachine1":
         return "display"
-    case "macbook", "macbookpro", "macbookair":
+    case "macbook", "macbookpro", "macbookair", "macbookneo":
         if let icon = macBookList[macID] { return icon }
         return "macbook"
     case "macmini":

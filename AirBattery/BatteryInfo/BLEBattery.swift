@@ -91,10 +91,10 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
     @AppStorage("updateInterval") var updateInterval = 1
-    @AppStorage("twsMerge") var twsMerge = 5
     
     var centralManager: CBCentralManager!
     var peripherals: [CBPeripheral?] = []
+    var noBatteryPeripherals: Set<UUID> = []
     var otherAppleDevices: [String] = []
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
@@ -120,13 +120,13 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     func startScan() {
         // 每隔一段时间启动一次扫描
         let interval = TimeInterval(29 * updateInterval)
-        scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scan), userInfo: nil, repeats: true)
+        scanTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.scan(longScan: false) }
         print("ℹ️ Start scanning BLE devices...")
         // 立即启动一次扫描
         scan(longScan: true)
     }
 
-    @objc func scan(longScan: Bool = false) {
+    func scan(longScan: Bool = false) {
         if centralManager.state == .poweredOn && !centralManager.isScanning {
             centralManager.scanForPeripherals(withServices: nil, options: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + (longScan ? 15.0 : 5.0)) {
@@ -150,9 +150,9 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         if let deviceName = peripheral.name{
             if AirBatteryModel.checkIfBlocked(name: deviceName) { return }
             if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
-                if data[0] != 76 {
+                if !(data.count > 1 && data[0] == 76 && data[1] == 0) {
                     //获取非Apple的普通BLE设备数据
-                    if readBLEDevice {
+                    if readBLEDevice && !noBatteryPeripherals.contains(peripheral.identifier) {
                         if let device = AirBatteryModel.getByName(deviceName) {
                             if now - device.lastUpdate > Double(60 * updateInterval) { get = true } } else { get = true }
                     }
@@ -170,40 +170,46 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 }
             }
         }
-        if get {
+        if get && !peripherals.contains(where: { $0?.identifier == peripheral.identifier }) {
             self.peripherals.append(peripheral)
             self.centralManager.connect(peripheral, options: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in self?.release(peripheral) }
         }
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        release(peripheral)
+    }
+
+    func release(_ peripheral: CBPeripheral) {
+        peripherals.removeAll { $0?.identifier == peripheral.identifier }
+        centralManager.cancelPeripheralConnection(peripheral)
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
-        guard let services = peripheral.services else { return }
-        for service in services {
-            peripheral.discoverCharacteristics(nil, for: service)
-        }
+        guard error == nil, let services = peripheral.services else { release(peripheral); return }
+        let battery = CBUUID(string: "180F")
+        let info = CBUUID(string: "180A")
+        if !services.contains(where: { $0.uuid == battery }) { noBatteryPeripherals.insert(peripheral.identifier) }
+        let wanted = services.filter { $0.uuid == battery || $0.uuid == info }
+        if wanted.isEmpty { release(peripheral); return }
+        for service in wanted { peripheral.discoverCharacteristics(nil, for: service) }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
         guard let characteristics = service.characteristics else { return }
-        var clear = true
-        if service.uuid == CBUUID(string: "180F") || service.uuid == CBUUID(string: "180A") {
-            for characteristic in characteristics {
-                if characteristic.uuid == CBUUID(string: "2A19") || characteristic.uuid == CBUUID(string: "2A24") || characteristic.uuid == CBUUID(string: "2A29") {
-                    clear = false
-                    peripheral.readValue(for: characteristic)
-                }
+        if service.uuid == CBUUID(string: "180F") {
+            if let level = characteristics.first(where: { $0.uuid == CBUUID(string: "2A19") }) {
+                peripheral.readValue(for: level)
+            } else {
+                noBatteryPeripherals.insert(peripheral.identifier)
+                release(peripheral)
+            }
+        } else if service.uuid == CBUUID(string: "180A") {
+            for characteristic in characteristics where characteristic.uuid == CBUUID(string: "2A24") || characteristic.uuid == CBUUID(string: "2A29") {
+                peripheral.readValue(for: characteristic)
             }
         }
-        if clear { if let index = self.peripherals.firstIndex(of: peripheral) { self.peripherals.remove(at: index) } }
-        
     }
     
     //电量信息
@@ -214,7 +220,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         //if !blockedItems.contains(name) && whitelistMode { return }
         
         if characteristic.uuid == CBUUID(string: "2A19"){
-            if let data = characteristic.value, let deviceName = peripheral.name {
+            defer { release(peripheral) }
+            if let data = characteristic.value, !data.isEmpty, let deviceName = peripheral.name {
                 let now = Date().timeIntervalSince1970
                 let level = Int(data[0])
                 if level > 100 { return }
@@ -262,20 +269,19 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 if let data = characteristic.value, let vendor = data.ascii() { bleDevicesVendor[deviceName] = vendor }
             }
         }
-        //self.centralManager.cancelPeripheralConnection(peripheral)
     }
     
     func getLevel(_ name: String, _ side: String) -> UInt8{
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return 255 }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any],
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any],
         let device_connected = SPBluetoothDataType["device_connected"] as? [Any] {
             for device in device_connected{
-                let d = device as! [String: Any]
+                guard let d = device as? [String: Any] else { continue }
                 if let n = d.keys.first,n == name,let info = d[n] as? [String: Any] {
                     if let level = info["device_batteryLevel"+side] as? String {
-                        return UInt8(level.replacingOccurrences(of: "%", with: "")) ?? 255
+                        if let value = UInt8(level.replacingOccurrences(of: "%", with: "")), value <= 100 { return value }
                     }
                 }
             }
@@ -287,10 +293,10 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return "general_bt" }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any],
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any],
         let device_connected = SPBluetoothDataType["device_connected"] as? [Any] {
             for device in device_connected{
-                let d = device as! [String: Any]
+                guard let d = device as? [String: Any] else { continue }
                 if let n = d.keys.first,n == name,let info = d[n] as? [String: Any] {
                     if let type = info["device_minorType"] as? String {
                         return type
@@ -301,6 +307,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         return "general_bt"
     }
     
+    private var productIDs = [String: Int]()
+
     func getAirpods(peripheral: CBPeripheral, data: Data, messageType: String) {
         guard let name = peripheral.name else { return }
         if AirBatteryModel.checkIfBlocked(name: name) { return }
@@ -312,51 +320,34 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             let index = dataHex.index(dataHex.startIndex, offsetBy: 14)
             let flip = (strtoul(String(dataHex[index]), nil, 16) & 0x02) == 0
             let deviceID = peripheral.identifier.uuidString
-            var model = (messageType == "open" ? getHeadphoneModel(String(format: "%02x%02x", data[6], data[5])) : "Airpods Pro 2")
+            let productHex = String(format: "%02x%02x", data[6], data[5])
+            if messageType == "open" { productIDs[deviceName] = AirPodsReading.productID(hex: productHex) }
+            var model = (messageType == "open" ? getHeadphoneModel(productHex) : "Airpods Pro 2")
             if let Case = AirBatteryModel.getByName(deviceName + " (Case)".local) { model = Case.deviceModel ?? model }
             
             var caseLevel = data[messageType == "open" ? 16 : 12]
             var caseCharging = 0
             if caseLevel != 255 {
                 caseCharging = caseLevel > 100 ? 1 : 0
-                caseLevel = (caseLevel ^ 128) & caseLevel
+                caseLevel = min((caseLevel ^ 128) & caseLevel, 100)
             }else{ caseLevel = getLevel(deviceName, "Case") }
             
             var leftLevel = data[messageType == "open" ? (flip ? 15 : 14) : 13]
             var leftCharging = 0
             if leftLevel != 255 {
                 leftCharging = leftLevel > 100 ? 1 : 0
-                leftLevel = (leftLevel ^ 128) & leftLevel
+                leftLevel = min((leftLevel ^ 128) & leftLevel, 100)
             }else{ leftLevel = getLevel(deviceName, "Left") }
             
             var rightLevel = data[messageType == "open" ? (flip ? 14 : 15) : 14]
             var rightCharging = 0
             if rightLevel != 255 {
                 rightCharging = rightLevel > 100 ? 1 : 0
-                rightLevel = (rightLevel ^ 128) & rightLevel
+                rightLevel = min((rightLevel ^ 128) & rightLevel, 100)
             }else{ rightLevel = getLevel(deviceName, "Right") }
             
-            if !["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"].contains(model) {
-                if caseLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName + " (Case)".local, deviceModel: model, batteryLevel: Int(caseLevel), isCharging: caseCharging, lastUpdate: now)) }
-                
-                if leftLevel != 255 && rightLevel != 255 && (abs(Int(leftLevel) - Int(rightLevel)) < twsMerge) && leftCharging == rightCharging {
-                    AirBatteryModel.hideDevice(deviceName + " 🄻")
-                    AirBatteryModel.hideDevice(deviceName + " 🅁")
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: deviceName + " 🄻🅁", deviceModel: model, batteryLevel: Int(min(leftLevel, rightLevel)), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now))
-                } else {
-                    AirBatteryModel.hideDevice(deviceName + " 🄻🅁")
-                    if leftLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: deviceName + " 🄻", deviceModel: model, batteryLevel: Int(leftLevel), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local ,lastUpdate: now)) }
-                    if rightLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: deviceName + " 🅁", deviceModel: model, batteryLevel: Int(rightLevel), isCharging: rightCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now)) }
-                }
-            } else {
-                if model == "Beats Studio Pro" {
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName, deviceModel: model, batteryLevel: Int(rightLevel), isCharging: rightCharging, lastUpdate: now))
-                } else {
-                    leftLevel = leftLevel != 255 ? leftLevel : 0
-                    rightLevel = rightLevel != 255 ? rightLevel : 0
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName, deviceModel: model, batteryLevel: Int(max(rightLevel, leftLevel)), isCharging: rightCharging + leftCharging > 0 ? 1 : 0, lastUpdate: now))
-                }
-            }
+            func part(_ level: UInt8, _ charging: Int) -> AirPodsPart? { level == 255 ? nil : AirPodsPart(level: Int(level), charging: charging) }
+            AirPodsReading(name: deviceName, deviceID: deviceID, model: model, productID: productIDs[deviceName], casePart: part(caseLevel, caseCharging), left: part(leftLevel, leftCharging), right: part(rightLevel, rightCharging)).publication(now: now).apply()
             //print("Type: \(messageType), C:\(caseLevel), L:\(leftLevel), R:\(rightLevel), Flip:\(messageType == "open" ? "\(flip)" : "none")")
             //print("Raw Data: \(data.hexEncodedString())")
         }
@@ -367,20 +358,93 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return paired }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw.first as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let key = d.keys.first { paired.append(key) }
                 }
             }
             if let device_connected = SPBluetoothDataType["device_not_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else { continue }
                     if let key = d.keys.first { paired.append(key) }
                 }
             }
         }
         return paired
+    }
+}
+
+struct AirPodsPart {
+    var level: Int
+    var charging: Int
+    var charged = false
+}
+
+struct AirPodsPublication {
+    var devices: [Device]
+    var removals: [String]
+
+    func apply() {
+        removals.forEach { AirBatteryModel.removeDevice($0) }
+        devices.forEach { AirBatteryModel.updateDevice($0) }
+    }
+}
+
+/// One AirPods/Beats reading from any source. Both BLE and the system power sources build it, so names, types and merging stay identical.
+struct AirPodsReading {
+    static let singleBodyModels: Set<String> = ["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"]
+
+    var name: String
+    var deviceID: String
+    var model: String
+    var productID: Int?
+    var casePart: AirPodsPart?
+    var left: AirPodsPart?
+    var right: AirPodsPart?
+    var whole: AirPodsPart?
+
+    static func productID(hex: String) -> Int? { Int(hex, radix: 16) }
+
+    func symbol(_ variant: String?) -> String? {
+        productID.flatMap { DeviceSymbols.symbol(vendorProductID: "76:\($0)", variant: variant) }
+    }
+
+    func publication(now: Double) -> AirPodsPublication {
+        let caseName = name + " (Case)".local
+        var devices = [Device]()
+        var removals = [String]()
+        let isSingle = Self.singleBodyModels.contains(model) || (casePart == nil && left == nil && right == nil && whole != nil)
+
+        if isSingle {
+            var body = whole
+            if body == nil {
+                if model == "Beats Studio Pro" {
+                    body = right
+                } else if left != nil || right != nil {
+                    body = AirPodsPart(level: max(right?.level ?? 0, left?.level ?? 0), charging: (right?.charging ?? 0) + (left?.charging ?? 0) > 0 ? 1 : 0)
+                }
+            }
+            if let body {
+                devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: name, deviceModel: model, batteryLevel: body.level, isCharging: body.charging, isCharged: body.charged, lastUpdate: now, iconSymbol: symbol(nil)))
+            }
+            return AirPodsPublication(devices: devices, removals: removals)
+        }
+
+        if let casePart {
+            devices.append(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: caseName, deviceModel: model, batteryLevel: casePart.level, isCharging: casePart.charging, isCharged: casePart.charged, lastUpdate: now, iconSymbol: symbol("chargingcase")))
+        }
+        let neverMerge = ud.bool(forKey: "neverMergeTws")
+        let threshold = ud.object(forKey: "twsMerge") as? Int ?? 5
+        if !neverMerge, let left, let right, abs(left.level - right.level) < threshold, left.charging == right.charging {
+            removals += [name + " 🄻", name + " 🅁"]
+            devices.append(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: name + " 🄻🅁", deviceModel: model, batteryLevel: min(left.level, right.level), isCharging: left.charging, isCharged: left.charged && right.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol(nil)))
+        } else {
+            removals.append(name + " 🄻🅁")
+            if let left { devices.append(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: name + " 🄻", deviceModel: model, batteryLevel: left.level, isCharging: left.charging, isCharged: left.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol("left"))) }
+            if let right { devices.append(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: name + " 🅁", deviceModel: model, batteryLevel: right.level, isCharging: right.charging, isCharged: right.charged, isHidden: false, parentName: caseName, lastUpdate: now, iconSymbol: symbol("right"))) }
+        }
+        return AirPodsPublication(devices: devices, removals: removals)
     }
 }
