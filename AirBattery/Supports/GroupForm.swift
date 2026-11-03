@@ -1,5 +1,5 @@
 //
-//  SInfoButton.swift
+//  GroupForm.swift
 //  AirBattery
 //
 //  Created by apple on 2024/10/28.
@@ -47,24 +47,19 @@ struct SGroupBox<Content: View>: View {
     }
 }
 
-struct SInfoButton: View {
-    var tips: LocalizedStringKey
-    @State private var isPresented: Bool = false
+struct SRowLabel: View {
+    var title: LocalizedStringKey
+    var tips: LocalizedStringKey?
     
     var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            Image(systemName: "info.circle")
-        }
-        .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("Info")
-        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
-            Text(tips)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 280, alignment: .leading)
-                .padding()
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            if let tips {
+                Text(tips)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -83,11 +78,10 @@ struct SButton: View {
     }
     
     var body: some View {
-        LabeledContent(title) {
-            HStack(spacing: 8) {
-                Button(buttonTitle, action: action)
-                if let tips { SInfoButton(tips: tips) }
-            }
+        LabeledContent {
+            Button(buttonTitle, action: action)
+        } label: {
+            SRowLabel(title: title, tips: tips)
         }
     }
 }
@@ -108,14 +102,13 @@ struct SField: View {
     }
     
     var body: some View {
-        LabeledContent(title) {
-            HStack(spacing: 8) {
-                TextField(title, text: $text, prompt: Text(placeholder))
-                    .labelsHidden()
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: width)
-                if let tips { SInfoButton(tips: tips) }
-            }
+        LabeledContent {
+            TextField(title, text: $text, prompt: Text(placeholder))
+                .labelsHidden()
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: width)
+        } label: {
+            SRowLabel(title: title, tips: tips)
         }
     }
 }
@@ -136,11 +129,10 @@ struct SPicker<T: Hashable, Content: View, Style: PickerStyle>: View {
     }
     
     var body: some View {
-        HStack(spacing: 8) {
-            Picker(title, selection: $selection, content: content)
-                .pickerStyle(style)
-            if let tips { SInfoButton(tips: tips) }
+        Picker(selection: $selection, content: content) {
+            SRowLabel(title: title, tips: tips)
         }
+        .pickerStyle(style)
     }
 }
 
@@ -156,11 +148,10 @@ struct SToggle: View {
     }
     
     var body: some View {
-        HStack(spacing: 8) {
-            Toggle(title, isOn: $isOn)
-                .toggleStyle(.switch)
-            if let tips { SInfoButton(tips: tips) }
+        Toggle(isOn: $isOn) {
+            SRowLabel(title: title, tips: tips)
         }
+        .toggleStyle(.switch)
     }
 }
 
@@ -171,10 +162,8 @@ struct SSteper: View {
     var max: Int
     var width: CGFloat
     var tips: LocalizedStringKey?
-    var reservesTipsSpace: Bool
     
-    init(_ title: LocalizedStringKey, value: Binding<Int>, min: Int = 0, max: Int = 100, width: CGFloat = 50, tips: LocalizedStringKey? = nil, reservesTipsSpace: Bool = false) {
-        self.reservesTipsSpace = reservesTipsSpace
+    init(_ title: LocalizedStringKey, value: Binding<Int>, min: Int = 0, max: Int = 100, width: CGFloat = 50, tips: LocalizedStringKey? = nil) {
         self.title = title
         self._value = value
         self.tips = tips
@@ -184,7 +173,7 @@ struct SSteper: View {
     }
     
     var body: some View {
-        LabeledContent(title) {
+        LabeledContent {
             HStack(spacing: 8) {
                 TextField(title, value: $value, format: .number)
                     .labelsHidden()
@@ -197,12 +186,9 @@ struct SSteper: View {
                     }
                 Stepper(title, value: $value, in: min...max)
                     .labelsHidden()
-                if let tips {
-                    SInfoButton(tips: tips)
-                } else if reservesTipsSpace {
-                    SInfoButton(tips: "").hidden()
-                }
             }
+        } label: {
+            SRowLabel(title: title, tips: tips)
         }
     }
 }

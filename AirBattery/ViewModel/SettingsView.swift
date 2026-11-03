@@ -203,7 +203,7 @@ struct NearbilityView: View {
             }
             SGroupBox(label: "Others") {
                 VStack(alignment: .leading, spacing: 4) {
-                    SSteper("Refresh Interval (min)", value: $updateInterval, min: 1, max: 99, reservesTipsSpace: true)
+                    SSteper("Refresh Interval (min)", value: $updateInterval, min: 1, max: 99)
                     if updateDelay != updateInterval {
                         Text("Relaunch AirBattery to apply this change")
                             .font(.footnote)
@@ -361,7 +361,6 @@ struct WidgetView: View {
     @AppStorage("deviceOnWidget") var deviceOnWidget = ""
     @AppStorage("widgetInterval") var widgetInterval = 0
     @AppStorage("deviceName") var deviceName = "Mac"
-    @AppStorage("widgetBackground") var widgetBackground = "translucent"
     
     @State var ib = getMacDeviceType().lowercased().contains("book")
     @State var devices = [String]()
@@ -373,15 +372,6 @@ struct WidgetView: View {
                 SPicker("Refresh Interval", selection: $widgetInterval) {
                     Text("System Default").tag(-1)
                     Text("Same as Nearbility").tag(0)
-                }
-                if #available(macOS 26, *) {
-                    SPicker("Widget Background", selection: $widgetBackground) {
-                        Text("Translucent").tag("translucent")
-                        Text("Solid").tag("solid")
-                    }.onChange(of: widgetBackground) { newValue in
-                        AirBatteryModel.writeWidgetBackground(newValue)
-                        WidgetCenter.shared.reloadAllTimelines()
-                    }
                 }
                 if #unavailable(macOS 14) {
                     SPicker("Single Device Widget", selection: $deviceOnWidget) {
