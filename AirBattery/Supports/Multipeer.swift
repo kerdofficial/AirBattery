@@ -59,7 +59,7 @@ class MultipeerService: ObservableObject {
                                     createNotification(title: "Device Connected".local,
                                                        message: String(format: "%@ from %@".local, device.name, peer.name))
                                 } else {
-                                    if let message = self.createInfo(type: 254, title: "Connection Failed".local, info: String(format: "cannot connect to your device!".local, device.name), atta: device.mac) {
+                                    if let message = self.createInfo(type: 254, title: "Connection Failed".local, info: String(format: "cannot connect to your device.".local, device.name), atta: device.mac) {
                                         self.sendMessage(message, peerID: peer.id)
                                     }
                                 }
@@ -101,7 +101,7 @@ class MultipeerService: ObservableObject {
                     }
                 default:
                     print("Unknown command: \(message.command)")
-                    if let info = self.createInfo(type: 255, title: "Unknown Command".local, info: String(format: "doesn't support command \"%@\"".local, message.command)) {
+                    if let info = self.createInfo(type: 255, title: "Unknown Command".local, info: String(format: "does not support the command \"%@\".".local, message.command)) {
                         self.sendMessage(info, peerID: peer.id)
                     }
                     return

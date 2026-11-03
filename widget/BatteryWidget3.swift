@@ -35,7 +35,7 @@ struct SmallWidgetView2: View {
     
     var body: some View {
         if !entry.mainApp {
-            Text("AirBattery is not running\nLaunch the app to make\nthe widget work")
+            Text("AirBattery is not running.\nLaunch the app to make\nthe widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -168,7 +168,7 @@ struct doubleBatteryWidgetEntryView2: View {
     
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
+            Text("AirBattery is not running.\nLaunch the app to make the widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -309,7 +309,7 @@ struct batteryWidget3: Widget {
                 .appWidgetBackground()
         }
         .configurationDisplayName("Batteries")
-        .description("Displays battery usage for your devices without percentage")
+        .description("Shows the battery levels of your devices without percentages.")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemMedium, .systemSmall])
     }

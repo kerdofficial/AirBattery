@@ -211,7 +211,7 @@ struct MultiBatteryView: View {
                     let message = NCMessage(id: String(ncGroupID.prefix(15)), sender: systemUUID ?? deviceName, command: "", content: data)
                     netcastService.sendMessage(message)
                 } catch {
-                    print("Write JSON error：\(error)")
+                    print("Failed to write JSON: \(error)")
                 }
             }
         }
@@ -595,7 +595,7 @@ struct popover: View {
                                 .foregroundColor(.blackWhite)
                                 .frame(width: 22, height: 22, alignment: .center)
                                 .padding(.vertical, 6)
-                            Text("Hidden Device:")
+                            Text("Hidden devices:")
                                 .font(.system(size: 12))
                                 .foregroundColor(.blackWhite)
                                 .frame(height: 24, alignment: .center)
@@ -692,7 +692,8 @@ struct DeviceActionsMenu: View {
     private var statusText: String {
         if isInternal { return (device.isCharging != 0 ? "Until Full:".local : "Until Empty:".local) + " " + InternalBattery.status.timeLeft }
         let updated = device.realUpdate != 0.0 ? device.realUpdate : device.lastUpdate
-        return "\(Int((Date().timeIntervalSince1970 - updated) / 60))" + " mins ago".local
+        let minutes = Int((Date().timeIntervalSince1970 - updated) / 60)
+        return String(format: (minutes == 1 ? "%d minute ago" : "%d minutes ago").local, minutes)
     }
     
     var body: some View {
@@ -722,7 +723,7 @@ struct DeviceActionsMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .onHover { isHovering = $0 }
-        .help("More Actions".local)
+        .help("More actions".local)
     }
     
     private func showBatteryAlerts() {

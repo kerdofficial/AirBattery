@@ -62,7 +62,7 @@ struct AlertInputView: View {
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                 VStack {
                     HStack(spacing: 4) {
-                        Toggle("Notify me when battery charged above:", isOn: $fullOn)
+                        Toggle("Notify me when the battery charges above:", isOn: $fullOn)
                             .toggleStyle(.checkbox)
                             .foregroundColor(fullOn ? .primary : .secondary)
                         Spacer()
@@ -91,7 +91,7 @@ struct AlertInputView: View {
                     }), in: 1...99).disabled(!fullOn)
                     Spacer().frame(height: 14)
                     HStack(spacing: 4) {
-                        Toggle("Notify me when battery goes below:", isOn: $lowOn)
+                        Toggle("Notify me when the battery falls below:", isOn: $lowOn)
                             .toggleStyle(.checkbox)
                             .foregroundColor(lowOn ? .primary : .secondary)
                         Spacer()
@@ -224,7 +224,7 @@ func batteryAlert() {
             if device.batteryLevel < alert.low && device.isCharging == 0 && alert.lowOn {
                 if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Low Battery".local
-                let body = String(format: "\"%@\" remaining battery %d%%".local, device.deviceName, device.batteryLevel)
+                let body = String(format: "\"%@\" has %d%% battery remaining.".local, device.deviceName, device.batteryLevel)
                 createNotification(title: title, message: body, alertSound: alert.lowSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }
@@ -233,7 +233,7 @@ func batteryAlert() {
             if device.batteryLevel > alert.full && device.isCharging != 0 && alert.fullOn {
                 if let delay = lowPowerNoteDelay[device.deviceName], delay > now.timeIntervalSince1970 { continue }
                 let title = "Fully Charged".local
-                let body = String(format: "\"%@\" battery has reached %d%%".local, device.deviceName, device.batteryLevel)
+                let body = String(format: "The battery of \"%@\" has reached %d%%.".local, device.deviceName, device.batteryLevel)
                 createNotification(title: title, message: body, alertSound: alert.fullSound, delay: true, info: device.deviceName)
                 if nearCast {
                     if let info = netcastService.createInfo(title: title, info: body) { netcastService.sendMessage(info) }

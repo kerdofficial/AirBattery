@@ -268,7 +268,7 @@ func createAlert(level: NSAlert.Style = .warning, title: String, message: String
 func registerNotificationCategory() {
     let delayAction = UNNotificationAction(
         identifier: "DELAY_30_MIN",
-        title: "Snooze for 30 minutes".local,
+        title: "Snooze for 30 Minutes".local,
         options: []
     )
 

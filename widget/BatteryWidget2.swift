@@ -14,7 +14,7 @@ struct LargeWidgetView2: View {
     
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
+            Text("AirBattery is not running.\nLaunch the app to make the widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -95,7 +95,7 @@ struct doubleRowBatteryWidgetEntryView: View {
     
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
+            Text("AirBattery is not running.\nLaunch the app to make the widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -259,7 +259,7 @@ struct singleBatteryWidgetEntryView: View {
     
     var body: some View {
         if !entry.mainApp{
-            Text("AirBattery is not running\nLaunch the app to make\nthe widget work")
+            Text("AirBattery is not running.\nLaunch the app to make\nthe widget work.")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Color.gray)
@@ -354,11 +354,11 @@ struct batteryWidgetEntryView2: View {
             case .systemSmall:
                 if #available(macOS 14, *) {
                     let item = entry.deviceName != "" ? entry.data.first(where: { $0.deviceName == entry.deviceName }) : nil
-                    singleBatteryWidgetEntryView(entry: entry, item: item, deviceName: entry.deviceName, warringText: "Right click to configure".local)
+                    singleBatteryWidgetEntryView(entry: entry, item: item, deviceName: entry.deviceName, warringText: "Right-click to configure".local)
                 } else {
                     let deviceName = AirBatteryModel.singleDeviceName()
                     let item = deviceName != "" ? entry.data.first(where: { $0.deviceName == deviceName }) : nil
-                    singleBatteryWidgetEntryView(entry: entry, item: item, deviceName: deviceName, warringText: "Select a Device in Preferences".local)
+                    singleBatteryWidgetEntryView(entry: entry, item: item, deviceName: deviceName, warringText: "Select a device in Settings".local)
                 }
             case .systemMedium:
                 doubleRowBatteryWidgetEntryView(entry: entry)
@@ -385,7 +385,7 @@ struct batteryWidget2New: Widget {
                 .appWidgetBackground()
         }
         .configurationDisplayName("Batteries")
-        .description("Displays the battery usage of a specific device")
+        .description("Shows the battery level of a specific device.")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemSmall])
     }
@@ -402,7 +402,7 @@ struct batteryWidget2: Widget {
                 .appWidgetBackground()
         }
         .configurationDisplayName("Batteries")
-        .description("More ways to displays battery usage for your devices")
+        .description("Shows the battery levels of your devices in more layouts.")
         .disableContentMarginsIfNeeded()
         .supportFamily()
     }
