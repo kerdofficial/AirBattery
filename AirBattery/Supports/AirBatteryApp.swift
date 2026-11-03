@@ -239,6 +239,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         bleBattery.startScan()
         btdBattery.startScan()
         MagicBattery.shared.startScan()
+        LogitechBattery.shared.startScan()
         IDeviceBattery.shared.startScan()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {

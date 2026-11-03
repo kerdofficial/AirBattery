@@ -207,6 +207,7 @@ struct MultiBatteryView: View {
         }
         .onReceive(dockTimer) {_ in IDeviceBattery.shared.scanDevices() }
         .onReceive(widgetDataTimer) {_ in
+            LogitechBattery.shared.refresh()
             SPBluetoothDataModel.shared.refeshData (completion: { result in
                 DispatchQueue.global(qos: .background).async {
                     MagicBattery.shared.scanDevices()

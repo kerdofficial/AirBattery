@@ -40,6 +40,8 @@
 		184ADF0D2DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
 		184ADF0E2DDB83EC004791F0 /* abt in CopyFiles */ = {isa = PBXBuildFile; fileRef = 184ADED12DDB2B37004791F0 /* abt */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		185AE80E2BA6041400FE1AA2 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185AE80D2BA6041400FE1AA2 /* main.swift */; };
+		A1B2C3D42F00000200000001 /* HIDPP.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000100000001 /* HIDPP.swift */; };
+		A1B2C3D42F00000200000002 /* LogitechBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000100000002 /* LogitechBattery.swift */; };
 		185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185E382C2C2733B9005578EC /* BTDBattery.swift */; };
 		18892A892B81F8320017377E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18892A882B81F8320017377E /* WidgetKit.framework */; };
 		18892A8B2B81F8320017377E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18892A8A2B81F8320017377E /* SwiftUI.framework */; };
@@ -148,6 +150,8 @@
 		184ADEFD2DDB6C9F004791F0 /* Supports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supports.swift; sourceTree = "<group>"; };
 		184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
 		185AE80D2BA6041400FE1AA2 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A1B2C3D42F00000100000001 /* HIDPP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDPP.swift; sourceTree = "<group>"; };
+		A1B2C3D42F00000100000002 /* LogitechBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogitechBattery.swift; sourceTree = "<group>"; };
 		185E382C2C2733B9005578EC /* BTDBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BTDBattery.swift; sourceTree = "<group>"; };
 		186671CC2B791CF700D4D27B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		18892A862B81F8320017377E /* AirBatteryWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirBatteryWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -329,6 +333,8 @@
 				1895851A2B724DCD00108E5C /* IDeviceBattery.swift */,
 				18347DC92B882C6400A78DF6 /* MagicBattery.swift */,
 				185E382C2C2733B9005578EC /* BTDBattery.swift */,
+				A1B2C3D42F00000100000001 /* HIDPP.swift */,
+				A1B2C3D42F00000100000002 /* LogitechBattery.swift */,
 				18F615F22B763DD800873AA4 /* BLEBattery.swift */,
 				18F615F82B76439300873AA4 /* AirBatteryModel.swift */,
 			);
@@ -550,6 +556,8 @@
 				184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
 				185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */,
+				A1B2C3D42F00000200000001 /* HIDPP.swift in Sources */,
+				A1B2C3D42F00000200000002 /* LogitechBattery.swift in Sources */,
 				18347DCE2B88417500A78DF6 /* BatteryView.swift in Sources */,
 				18347DCA2B882C6500A78DF6 /* MagicBattery.swift in Sources */,
 				1841D47D2AAA20F80022A1BE /* InternalBattery.swift in Sources */,
