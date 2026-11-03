@@ -22,9 +22,10 @@ var lowPowerNoteDelay = [String: Double]()
 // Serialized incremental log reader for Enhanced HID scans
 class LogReader {
     static let shared = LogReader()
+    static let endMarker = "#END"
 
     @AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("logReaderLastTS") var lastTS: String = ""   // e.g. "2025-07-01 12:34:56 +0000"
+    @AppStorage("logReaderLastTS") var lastTS: String = ""   // e.g. "2025-07-01 12:34:56+0000"
 
     private var isRunning = false
     private var queued = false
@@ -32,7 +33,7 @@ class LogReader {
     private let fmt: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZZZ"
+        f.dateFormat = "yyyy-MM-dd HH:mm:ssZ"
         return f
     }()
 
@@ -47,17 +48,16 @@ class LogReader {
 
         let args: [String]
         if let start = computeStart(trigger) {
-            setenv("START_TS", start, 1)
-            args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", "10m"]
+            args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", "10m", start]
         } else {
-            unsetenv("START_TS")
             let win = (trigger == .bootstrap) ? "20m" : (trigger == .wake ? "3m" : "2m")
             args = ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", win]
         }
 
-        let out = process(path: "/bin/bash", arguments: args, timeout: 5)
+        let readStart = Date()
+        let out = process(path: "/bin/bash", arguments: args, timeout: 20)
         parseAndUpdate(output: out)
-        advanceLastTS()
+        if let out = out, out.hasSuffix(LogReader.endMarker) { advanceLastTS(readStart) }
 
         lock.lock()
         isRunning = false
@@ -76,13 +76,14 @@ class LogReader {
             return fmt.string(from: t)
         }
         if let prev = fmt.date(from: lastTS) {
-            return fmt.string(from: prev.addingTimeInterval(-2))
+            let oldest = Date(timeIntervalSinceNow: -10 * 60)
+            return fmt.string(from: max(prev.addingTimeInterval(-2), oldest))
         }
         return nil
     }
 
-    private func advanceLastTS() {
-        lastTS = fmt.string(from: Date().addingTimeInterval(-2))
+    private func advanceLastTS(_ readStart: Date) {
+        lastTS = fmt.string(from: readStart.addingTimeInterval(-2))
     }
 
     private func parseAndUpdate(output: String?) {

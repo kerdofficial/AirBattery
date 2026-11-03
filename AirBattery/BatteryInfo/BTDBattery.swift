@@ -24,7 +24,7 @@ class BTDBattery {
     @objc func scanDevices(longScan: Bool = false) {
         Thread.detachNewThread {
             if self.readBTHID {
-                if longScan { BTDBattery.getOtherDevice(last: "2h", timeout: 25) }
+                if longScan { BTDBattery.getOtherDevice(last: "2h", timeout: 40) }
                 let connects = BTDBattery.getConnected()
                 let names = BTDBattery.allDevices.filter({ connects.contains($0) })
                 for name in names {
@@ -52,39 +52,24 @@ class BTDBattery {
         guard let result = process(path: "/bin/bash", arguments: ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", last], timeout: timeout) else { return }
         let connected = getConnected(mac: true)
         var list = [[String : Any]]()
-        let devices = result.components(separatedBy: "\n")
-        for device in devices {
-            if let json = try? JSONSerialization.jsonObject(with: Data(device.utf8), options: []) as? [String: Any] {
-                if let index = list.firstIndex(where: { dict in
-                    let name = dict["name"] as! String
-                    let mac = dict["mac"] as! String
-                    let type = dict["type"] as! String
-                    let nameNow = json["name"] as! String
-                    let macNow = json["mac"] as! String
-                    let typeNow = json["type"] as! String
-                    return (name == nameNow && mac == macNow && type == typeNow)
-                }) {
-                    list[index] = json
-                } else {
-                    list.append(json)
-                }
+        for line in result.components(separatedBy: "\n") {
+            guard let json = try? JSONSerialization.jsonObject(with: Data(line.utf8), options: []) as? [String: Any],
+                  let name = json["name"] as? String, let mac = json["mac"] as? String, let type = json["type"] as? String else { continue }
+            if let index = list.firstIndex(where: { ($0["name"] as? String) == name && ($0["mac"] as? String) == mac && ($0["type"] as? String) == type }) {
+                list[index] = json
+            } else {
+                list.append(json)
             }
         }
         for d in list {
-            let mac = d["mac"] as! String
-            var name = d["name"] as! String
-            let type = d["type"] as! String
-            let time = d["time"] as! String
-            let level = d["level"] as! Int
-            let status = (d["status"] as! String) == "+" ? 1 : 0
+            guard let mac = d["mac"] as? String, var name = d["name"] as? String, let type = d["type"] as? String,
+                  let time = d["time"] as? String, let level = d["level"] as? Int else { continue }
+            let status = (d["status"] as? String) == "+" ? 1 : 0
             if name == "" { name = "\(type) (\(mac))" }
             if connected.contains(mac) {
                 if let index = allDevices.firstIndex(of: name) { allDevices[index] = name } else { allDevices.append(name) }
                 AirBatteryModel.updateDevice(Device(deviceID: mac, deviceType: type, deviceName: name, batteryLevel: min(100, max(0, level)), isCharging: status, parentName: parent, lastUpdate: Date().timeIntervalSince1970, realUpdate: isoFormatter.date(from: time)?.timeIntervalSince1970 ?? 0.0))
-            }/* else {
-                if let index = allDevices.firstIndex(of: name) { allDevices.remove(at: index) }
-                AirBatteryModel.updateDevice(Device(deviceID: mac, deviceType: type, deviceName: name, batteryLevel: min(100, max(0, level)), isCharging: status, parentName: parent, lastUpdate: Date(timeIntervalSince1970: 0).timeIntervalSince1970))
-            }*/
+            }
         }
         
         /*guard let result = process(path: "\(Bundle.main.resourcePath!)/hidpp/bin/hidpp-list-devices", arguments: []) else { return }
