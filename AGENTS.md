@@ -61,6 +61,7 @@ Before calling a change done, walk this list and say which entries applied:
 - Compile check without touching signing: `xcodebuild -project AirBattery.xcodeproj -scheme AirBattery -configuration Debug -derivedDataPath <temp dir> CODE_SIGNING_ALLOWED=NO build`. Use a temp derived data path; after a package version change, delete its `Build` folder to avoid stale module errors.
 - Signed, notarized release build: `scripts/build-release.sh` with `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` set. Output goes to `build/` (ignored).
 - Ad-hoc signed builds cannot write into the widget container and fail Sparkle library validation from `/Applications`; widget behavior can only be checked with a properly signed build.
+- After replacing the installed app, an already running `AirBatteryWidgetExtension` process keeps serving the old code (data still updates, code changes do not). Check `ps` for extension processes started before the install or running from a derived data path, and stop those exact PIDs. Delete `Build/Products` of temporary derived data folders after compile checks so their extensions cannot be picked up.
 - `AirBattery/libimobiledevice/` holds prebuilt universal binaries and dylibs copied into the app as resources. Rebuild them from source outside the repo, keep `@executable_path/../lib/` install names and `-mmacosx-version-min` at or below the app minimum. `scripts/build-release.sh` signs them for notarization.
 - Never deploy, publish packages, push tags, or create releases unless asked.
 
