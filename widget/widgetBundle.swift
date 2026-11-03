@@ -18,6 +18,29 @@ extension View {
     }
 }
 
+extension View {
+    @ViewBuilder
+    func appWidgetBackground() -> some View {
+        if #available(macOS 26.0, *), AirBatteryModel.readWidgetBackground() == "translucent" {
+            containerBackground(.background, for: .widget)
+        } else {
+            widgetBackground(Color("WidgetBackground"))
+        }
+    }
+
+    @ViewBuilder
+    func accentable() -> some View {
+        if #available(macOS 14.0, *) { widgetAccentable() } else { self }
+    }
+}
+
+extension Image {
+    @ViewBuilder
+    func iconAccentedRendering() -> some View {
+        if #available(macOS 15.0, *) { widgetAccentedRenderingMode(.accentedDesaturated) } else { self }
+    }
+}
+
 extension WidgetConfiguration {
     func disableContentMarginsIfNeeded() -> some WidgetConfiguration {
         if #available(macOS 12.0, *) {

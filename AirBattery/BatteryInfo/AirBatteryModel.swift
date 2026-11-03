@@ -139,6 +139,16 @@ class AirBatteryModel {
         return ""
     }
     
+    static func writeWidgetBackground(_ style: String) {
+        let url = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(key)/Data/Documents/widgetBackground")
+        try? style.write(to: url, atomically: true, encoding: .utf8)
+    }
+    
+    static func readWidgetBackground() -> String {
+        let url = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("widgetBackground")
+        return (try? String(contentsOf: url, encoding: .utf8)) ?? "translucent"
+    }
+    
     static func getJsonURL() -> URL {
         var url: URL
         let bundleIdentifier = Bundle.main.bundleIdentifier
@@ -154,6 +164,7 @@ class AirBatteryModel {
         //let showMac = ud.object(forKey: "showMacOnWidget") as? Bool ?? true
         let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
         
+        writeWidgetBackground(ud.string(forKey: "widgetBackground") ?? "translucent")
         var devices = getAll(reverse: revList)
         let ibStatus = InternalBattery.status
         if ibStatus.hasBattery { devices.insert(ib2ab(ibStatus), at: 0) }
