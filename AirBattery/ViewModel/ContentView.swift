@@ -306,7 +306,7 @@ struct popover: View {
             VStack(spacing: 0){
                 if !fromDock {
                     Color.clear
-                        .frame(height: popoverIsModern ? 12 : 8.5)
+                        .frame(height: popoverIsModern ? 10 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
@@ -772,7 +772,7 @@ struct popover: View {
                 }
                 if !fromDock {
                     Color.clear
-                        .frame(height: popoverIsModern ? 12 : 8.5)
+                        .frame(height: popoverIsModern ? 10 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
