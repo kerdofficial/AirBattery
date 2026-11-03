@@ -53,7 +53,6 @@ struct MultiBatteryView: View {
     @AppStorage("carouselMode") var carouselMode = true
     @AppStorage("appearance") var appearance = "auto"
     @AppStorage("showOn") var showOn = "sbar"
-    @AppStorage("widgetInterval") var widgetInterval = 0
     @AppStorage("readBTHID") var readBTHID = true
     @AppStorage("deviceName") var deviceName = "Mac"
     @AppStorage("nearCast") var nearCast = false
@@ -202,21 +201,7 @@ struct MultiBatteryView: View {
             NSApp.dockTile.display()
         }
         .onReceive(alertTimer) {_ in batteryAlert() }
-        .onReceive(widgetViewTimer) {_ in
-            if widgetInterval != -1 { WidgetCenter.shared.reloadAllTimelines() }
-        }
         .onReceive(dockTimer) {_ in IDeviceBattery.shared.scanDevices() }
-        .onReceive(widgetDataTimer) {_ in
-            LogitechBattery.shared.refresh()
-            SPBluetoothDataModel.shared.refeshData (completion: { result in
-                DispatchQueue.global(qos: .background).async {
-                    MagicBattery.shared.scanDevices()
-                    AirBatteryModel.writeData()
-                }
-            }, error: {
-                AirBatteryModel.writeData()
-            })
-        }
         .onReceive(nearCastTimer) {_ in
             if nearCast && ncGroupID != ""{
                 var allDevices = AirBatteryModel.getAll()
