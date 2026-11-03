@@ -165,3 +165,6 @@
 "Name" = "名称";
 "Lowest Battery First" = "电量低的在前";
 "Highest Battery First" = "电量高的在前";
+"Copy Device ID" = "复制设备 ID";
+"Device ID Copied" = "设备 ID 已复制";
+"Device ID \"%@\" has been copied to the clipboard." = "设备 ID \"%@\" 已复制到剪贴板。";

@@ -273,6 +273,7 @@ struct popover: View {
     @State private var hiddenDevices = AirBatteryModel.getBlackList()
     @State private var overReloadButton = false
     @State private var overCopyButton = false
+    @State private var overCopyIDButton = false
     @State private var overHideButton = false
     @State private var overAlertButton = false
     @State private var overPinButton = false
@@ -587,6 +588,24 @@ struct popover: View {
                                                     .buttonStyle(PlainButtonStyle())
                                                     .onHover{ hovering in overCopyButton = hovering }
                                                 }
+                                                if allDevices[index].deviceID != "@MacInternalBattery" {
+                                                    Button(action: {
+                                                        copyToClipboard(allDevices[index].deviceID)
+                                                        DispatchQueue.main.async {
+                                                            _ = createAlert(title: "Device ID Copied".local,
+                                                                            message: String(format: "Device ID \"%@\" has been copied to the clipboard.".local, allDevices[index].deviceID),
+                                                                            button1: "OK".local).runModal()
+                                                        }
+                                                    }, label: {
+                                                        Image(systemName: "number.circle.fill")
+                                                            .resizable().scaledToFit()
+                                                            .frame(width: 18, height: 18, alignment: .center)
+                                                            .foregroundColor(overCopyIDButton ? .accentColor : .secondary)
+                                                    })
+                                                    .buttonStyle(PlainButtonStyle())
+                                                    .help("Copy Device ID".local)
+                                                    .onHover{ hovering in overCopyIDButton = hovering }
+                                                }
                                                 
                                                 if allDevices[index].deviceID != "@MacInternalBattery" {
                                                     Button(action: {
@@ -803,6 +822,7 @@ struct nearcastView: View {
     @Binding var overStackNC: Int
     @State private var overStack = -1
     @State private var overCopyButton = false
+    @State private var overCopyIDButton = false
     @State private var overAlertButton = false
     @State private var overPinButton = false
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
@@ -929,6 +949,20 @@ struct nearcastView: View {
                                         .buttonStyle(PlainButtonStyle())
                                         .onHover{ hovering in overCopyButton = hovering }
                                     }
+                                    Button(action: {
+                                        copyToClipboard(devices[index].deviceID)
+                                        _ = createAlert(title: "Device ID Copied".local,
+                                                        message: String(format: "Device ID \"%@\" has been copied to the clipboard.".local, devices[index].deviceID),
+                                                        button1: "OK".local).runModal()
+                                    }, label: {
+                                        Image(systemName: "number.circle.fill")
+                                            .resizable().scaledToFit()
+                                            .frame(width: 18, height: 18, alignment: .center)
+                                            .foregroundColor(overCopyIDButton ? .accentColor : .secondary)
+                                    })
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Copy Device ID".local)
+                                    .onHover{ hovering in overCopyIDButton = hovering }
                                 }
                             }
                         } else {
