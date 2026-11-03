@@ -154,7 +154,7 @@
 "iPhone, iPad, Apple Watch and Vision Pro on your local network." = "扫描局域网中的 iPhone、iPad、Apple Watch 和 Vision Pro。";
 "Nearby iPhone and cellular iPad over Bluetooth." = "通过蓝牙扫描附近的 iPhone 和蜂窝版 iPad。";
 "Mice, keyboards, headphones and other Bluetooth peripherals." = "鼠标、键盘、耳机等蓝牙外设。";
-"Logitech devices on Lightspeed, Unifying or Bolt receivers, and PRO X 2 headsets." = "通过 Lightspeed、Unifying 或 Bolt 接收器连接的罗技设备，以及 PRO X 2 耳机。";
+"Logitech mice, keyboards and headsets on Lightspeed, Unifying or Bolt receivers." = "通过 Lightspeed、Unifying 或 Bolt 接收器连接的罗技鼠标、键盘和耳机。";
 "More third-party Bluetooth devices. Updates when they reconnect or the Mac wakes." = "更多第三方蓝牙设备。设备重新连接或 Mac 唤醒时更新。";
 "Any Bluetooth device AirBattery can find. Beta, may cause unexpected errors." = "AirBattery 能找到的任何蓝牙设备。测试版功能，可能导致意外错误。";
 "Through your iPad. First discovery can take 10+ minutes. Beta, may drain your iPad faster." = "通过 iPad 读取。首次发现可能需要 10 分钟以上。测试版功能，可能加快 iPad 耗电。";

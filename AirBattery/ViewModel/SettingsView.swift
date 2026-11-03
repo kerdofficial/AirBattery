@@ -189,7 +189,7 @@ struct NearbilityView: View {
                 SToggle("Discover iOS devices via Network", isOn: $readIDevice, tips: "iPhone, iPad, Apple Watch and Vision Pro on your local network.")
                 SToggle("Discover iOS devices via Bluetooth", isOn: $ideviceOverBLE, tips: "Nearby iPhone and cellular iPad over Bluetooth.")
                 SToggle("Discover BT and BLE devices", isOn: $readBTDevice, tips: "Mice, keyboards, headphones and other Bluetooth peripherals.")
-                SToggle("Discover Logitech receiver devices", isOn: $readLogitech, tips: "Logitech devices on Lightspeed, Unifying or Bolt receivers, and PRO X 2 headsets.")
+                SToggle("Discover Logitech receiver devices", isOn: $readLogitech, tips: "Logitech mice, keyboards and headsets on Lightspeed, Unifying or Bolt receivers.")
                 SToggle("Discover more BT devices", isOn: $readBTHID, tips: "More third-party Bluetooth devices. Updates when they reconnect or the Mac wakes.")
                 SToggle("Discover more BLE devices", isOn: $readBLEDevice, tips: "Any Bluetooth device AirBattery can find. Beta, may cause unexpected errors.")
                     .foregroundColor(.orange)
