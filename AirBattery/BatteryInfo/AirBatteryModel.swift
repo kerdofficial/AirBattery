@@ -134,6 +134,31 @@ class AirBatteryModel {
     
     static func sortGroups(_ list: [Device], order: String, thisMac: String?, reverse: Bool = false) -> [Device] {
         guard order != "default" else { return list }
+        let (roots, members) = groupByRoot(list, thisMac: thisMac)
+        let manualIndex = Dictionary(manualOrder.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: { first, _ in first })
+        let indexed = roots.enumerated().sorted { a, b in
+            let (x, y) = (a.element, b.element)
+            switch order {
+            case "levelAsc", "levelDesc":
+                if x.hasBattery != y.hasBattery { return x.hasBattery }
+                if x.batteryLevel != y.batteryLevel { return order == "levelAsc" ? x.batteryLevel < y.batteryLevel : x.batteryLevel > y.batteryLevel }
+            case "manual":
+                let (i, j) = (manualIndex[x.deviceName] ?? Int.max, manualIndex[y.deviceName] ?? Int.max)
+                if i != j { return i < j }
+            default:
+                let result = x.deviceName.localizedCaseInsensitiveCompare(y.deviceName)
+                if result != .orderedSame { return result == .orderedAscending }
+            }
+            return a.offset < b.offset
+        }
+        var sortedRoots = indexed.map { $0.element }
+        if reverse { sortedRoots.reverse() }
+        let rootNames = Set(sortedRoots.map { $0.deviceName })
+        let orphans = members.filter { !rootNames.contains($0.key) }.values.flatMap { $0 }
+        return sortedRoots.flatMap { [$0] + (members[$0.deviceName] ?? []) } + orphans
+    }
+    
+    private static func groupByRoot(_ list: [Device], thisMac: String?) -> (roots: [Device], members: [String: [Device]]) {
         let byName = Dictionary(list.map { ($0.deviceName, $0) }, uniquingKeysWith: { first, _ in first })
         func rootName(_ device: Device) -> String {
             var current = device
@@ -149,23 +174,20 @@ class AirBatteryModel {
             let root = rootName(device)
             if root == device.deviceName { roots.append(device) } else { members[root, default: []].append(device) }
         }
-        let indexed = roots.enumerated().sorted { a, b in
-            let (x, y) = (a.element, b.element)
-            switch order {
-            case "levelAsc", "levelDesc":
-                if x.hasBattery != y.hasBattery { return x.hasBattery }
-                if x.batteryLevel != y.batteryLevel { return order == "levelAsc" ? x.batteryLevel < y.batteryLevel : x.batteryLevel > y.batteryLevel }
-            default:
-                let result = x.deviceName.localizedCaseInsensitiveCompare(y.deviceName)
-                if result != .orderedSame { return result == .orderedAscending }
-            }
-            return a.offset < b.offset
-        }
-        var sortedRoots = indexed.map { $0.element }
-        if reverse { sortedRoots.reverse() }
-        let rootNames = Set(sortedRoots.map { $0.deviceName })
-        let orphans = members.filter { !rootNames.contains($0.key) }.values.flatMap { $0 }
-        return sortedRoots.flatMap { [$0] + (members[$0.deviceName] ?? []) } + orphans
+        return (roots, members)
+    }
+    
+    static var manualOrder: [String] { ud.stringArray(forKey: "manualDeviceOrder") ?? [] }
+    
+    static func rootDevices(order: String? = nil) -> [Device] {
+        let thisMac = ud.string(forKey: "deviceName")
+        var list = getAll()
+        if let order { list = sortGroups(list, order: order, thisMac: thisMac) }
+        return groupByRoot(list, thisMac: thisMac).roots
+    }
+    
+    static func saveManualOrder(_ visible: [String]) {
+        ud.set(visible + manualOrder.filter { !visible.contains($0) }, forKey: "manualDeviceOrder")
     }
     
     static func getByName(_ name: String) -> Device? {

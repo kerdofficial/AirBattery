@@ -165,6 +165,11 @@
 "Name" = "名称";
 "Lowest battery first" = "电量低的在前";
 "Highest battery first" = "电量高的在前";
+"Manual" = "手动";
+"Device Order" = "设备顺序";
+"Drag devices to set their order. New devices are added at the end." = "拖动设备以设置顺序。新设备会添加到末尾。";
+"Move Up" = "上移";
+"Move Down" = "下移";
 "Copy Device ID" = "复制设备 ID";
 "Device ID Copied" = "设备 ID 已复制";
 "Device ID \"%@\" has been copied to the clipboard." = "设备 ID \"%@\" 已复制到剪贴板。";
