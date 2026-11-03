@@ -10,7 +10,7 @@ import ArgumentParser
 
 let fd = FileManager.default
 let ud = UserDefaults.standard
-let key = "com.lihaoyun6.AirBattery.widget"
+let key = "com.kerdofficial.AirBattery.widget"
 let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
 
 extension Device {

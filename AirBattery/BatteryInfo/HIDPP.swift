@@ -41,7 +41,7 @@ enum HIDPPFeatureID: UInt16 {
 final class HIDChannel {
     let device: IOHIDDevice
     let maxOutputReportSize: Int
-    private let queue = DispatchQueue(label: "com.lihaoyun6.AirBattery.hid.channel")
+    private let queue = DispatchQueue(label: "com.kerdofficial.AirBattery.hid.channel")
     private let reportBuffer: UnsafeMutablePointer<UInt8>
     private let reportBufferSize: Int
     private let lock = NSLock()
