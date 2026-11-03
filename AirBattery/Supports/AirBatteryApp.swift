@@ -75,6 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var startTime = Date()
     var widgetRefreshTimer: Timer?
     var alertCheckTimer: Timer?
+    var iDeviceScanTimer: Timer?
     var lastWidgetReload = Date.distantPast
     let nc = NSWorkspace.shared.notificationCenter
     
@@ -241,6 +242,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         }
         startWidgetRefresh()
         startAlertCheck()
+        startIDeviceScan()
         
         //menu.delegate = self
         //statusMenu.delegate = self
@@ -303,6 +305,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         timer.tolerance = 2
         RunLoop.main.add(timer, forMode: .common)
         widgetRefreshTimer = timer
+    }
+    
+    func startIDeviceScan() {
+        let timer = Timer(timeInterval: 5, repeats: true) { _ in IDeviceBattery.shared.scanDevices() }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        iDeviceScanTimer = timer
     }
     
     func startAlertCheck() {

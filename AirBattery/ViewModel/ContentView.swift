@@ -200,7 +200,6 @@ struct MultiBatteryView: View {
             darkMode = getDarkMode()
             NSApp.dockTile.display()
         }
-        .onReceive(dockTimer) {_ in IDeviceBattery.shared.scanDevices() }
         .onReceive(nearCastTimer) {_ in
             if nearCast && ncGroupID != ""{
                 var allDevices = AirBatteryModel.getAll()
