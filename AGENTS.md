@@ -69,11 +69,19 @@ Before calling a change done, walk this list and say which entries applied:
 
 - Xcode 27 or newer; `AirBattery.xcodeproj` has the schemes `AirBattery`, `AirBatteryWidgetExtension`, `AirBatteryHelper` and `abt`. Swift packages (Sparkle, MultipeerKit, swift-argument-parser) are pinned in `AirBattery.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`.
 - Compile check without touching signing: `xcodebuild -project AirBattery.xcodeproj -scheme AirBattery -configuration Debug -derivedDataPath <temp dir> CODE_SIGNING_ALLOWED=NO build`. Use a temp derived data path; after a package version change, delete its `Build` folder to avoid stale module errors.
-- Signed, notarized release build: `scripts/build-release.sh` with `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` set. Output goes to `build/` (ignored).
+- Signed, notarized release build: `scripts/build-release.sh` with `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` set; it also checks the team and hardened runtime of every Mach-O file. Output goes to `build/` (ignored). `scripts/publish-release.sh` ships it (see Releasing).
 - Ad-hoc signed builds cannot write into the widget container and fail Sparkle library validation from `/Applications`; widget behavior can only be checked with a properly signed build.
 - After replacing the installed app, an already running `AirBatteryWidgetExtension` process keeps serving the old code (data still updates, code changes do not). Check `ps` for extension processes started before the install or running from a derived data path, and stop those exact PIDs. Delete `Build/Products` of temporary derived data folders after compile checks so their extensions cannot be picked up.
 - `AirBattery/libimobiledevice/` holds prebuilt universal binaries and dylibs copied into the app as resources. Rebuild them from source outside the repo, keep `@executable_path/../lib/` install names and `-mmacosx-version-min` at or below the app minimum. `scripts/build-release.sh` signs them for notarization.
 - Never deploy, publish packages, push tags, or create releases unless asked.
+
+## Releasing
+
+- Bump `MARKETING_VERSION` (SemVer) and `CURRENT_PROJECT_VERSION` in the app and widget targets, and in `abt` if it sets them. The build number must increase, because Sparkle compares it, not the marketing version.
+- Write `release-notes/<version>.md`: user-facing, English, used for both the GitHub release and the appcast item.
+- Run `scripts/build-release.sh`, then `scripts/publish-release.sh <version> --dry-run`, then `scripts/publish-release.sh <version>`. The script signs the zip for Sparkle, adds the item to `appcast.xml` and creates the GitHub release with the zip.
+- The appcast goes live only when the commit containing `appcast.xml` reaches `main`, so merge it after the release asset exists.
+- Releasing needs the maintainer's go; never run these scripts on your own.
 
 ## Verifying
 
