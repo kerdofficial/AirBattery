@@ -170,3 +170,9 @@
 "Device ID \"%@\" has been copied to the clipboard." = "设备 ID \"%@\" 已复制到剪贴板。";
 "Always Show Earbuds Separately" = "始终分开显示左右耳机";
 "Show the left and right earbud as two devices even when their levels are close" = "即使左右耳机电量接近，也将它们显示为两个设备";
+"Battery Alerts..." = "电量提醒...";
+"Pin to Menu Bar" = "固定到菜单栏";
+"Unpin from Menu Bar" = "从菜单栏取消固定";
+"Copy Name" = "复制名称";
+"Hide" = "隐藏";
+"More Actions" = "更多操作";
