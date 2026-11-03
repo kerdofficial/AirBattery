@@ -10,7 +10,12 @@ import IOBluetooth
 
 class SPBluetoothDataModel {
     static var shared: SPBluetoothDataModel = SPBluetoothDataModel()
-    var data: String = "{}"
+    private let lock = NSLock()
+    private var _data: String = "{}"
+    var data: String {
+        get { lock.lock(); defer { lock.unlock() }; return _data }
+        set { lock.lock(); defer { lock.unlock() }; _data = newValue }
+    }
     
     func refeshData(completion: (String) -> Void, error: (() -> Void)? = nil) {
         if let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) {
