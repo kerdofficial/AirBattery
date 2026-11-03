@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import os
+
+let dataLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.kerdofficial.AirBattery", category: "data")
 
 struct btdDevice: Codable, Equatable {
     let time: Date
@@ -134,7 +137,11 @@ class AirBatteryModel {
             return devicename ?? ""
         } else {
             url = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(key)/Data/Documents/singleDeviceName")
-            try? ud.string(forKey: "deviceOnWidget")?.write(to: url, atomically: true, encoding: .utf8)
+            do {
+                try ud.string(forKey: "deviceOnWidget")?.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                dataLog.error("Write singleDeviceName failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
         return ""
     }
@@ -161,7 +168,7 @@ class AirBatteryModel {
             let jsonData = try JSONEncoder().encode(devices)
             try jsonData.write(to: getJsonURL())
         } catch {
-            print("Write JSON error：\(error)")
+            dataLog.error("Write data.json failed: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -171,7 +178,7 @@ class AirBatteryModel {
             let list = try JSONDecoder().decode([Device].self, from: jsonData)
             return list
         } catch {
-            print("Read JSON error：\(error)")
+            dataLog.error("Read \(url.lastPathComponent, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
         }
         return []
     }

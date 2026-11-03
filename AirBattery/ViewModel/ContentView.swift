@@ -53,7 +53,6 @@ struct MultiBatteryView: View {
     @AppStorage("carouselMode") var carouselMode = true
     @AppStorage("appearance") var appearance = "auto"
     @AppStorage("showOn") var showOn = "sbar"
-    @AppStorage("widgetInterval") var widgetInterval = 0
     @AppStorage("readBTHID") var readBTHID = true
     @AppStorage("deviceName") var deviceName = "Mac"
     @AppStorage("nearCast") var nearCast = false
@@ -202,21 +201,7 @@ struct MultiBatteryView: View {
             NSApp.dockTile.display()
         }
         .onReceive(alertTimer) {_ in batteryAlert() }
-        .onReceive(widgetViewTimer) {_ in
-            if widgetInterval != -1 { WidgetCenter.shared.reloadAllTimelines() }
-        }
         .onReceive(dockTimer) {_ in IDeviceBattery.shared.scanDevices() }
-        .onReceive(widgetDataTimer) {_ in
-            LogitechBattery.shared.refresh()
-            SPBluetoothDataModel.shared.refeshData (completion: { result in
-                DispatchQueue.global(qos: .background).async {
-                    MagicBattery.shared.scanDevices()
-                    AirBatteryModel.writeData()
-                }
-            }, error: {
-                AirBatteryModel.writeData()
-            })
-        }
         .onReceive(nearCastTimer) {_ in
             if nearCast && ncGroupID != ""{
                 var allDevices = AirBatteryModel.getAll()
@@ -306,13 +291,22 @@ struct popover: View {
     @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
     
+    @ViewBuilder
+    private var dockBackground: some View {
+        if #available(macOS 26.0, *) {
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 7))
+        } else {
+            Color.clear.background(BlurView(material: .menu))
+        }
+    }
+    
     var body: some View {
         ZStack{
-            if fromDock { Color.clear.background(BlurView(material: .menu)) }
+            if fromDock { dockBackground }
             VStack(spacing: 0){
                 if !fromDock {
                     Color.clear
-                        .frame(height: 8.5)
+                        .frame(height: popoverIsModern ? 10 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
@@ -407,8 +401,9 @@ struct popover: View {
                         .onHover{ hovering in overReloButton = hovering }
                     }
                 }
-                .offset(y: -3.5)
-                .padding(.horizontal, 5)
+                .offset(y: popoverIsModern ? 0 : -3.5)
+                .padding(.horizontal, popoverIsModern ? 14 : 5)
+                .padding(.bottom, popoverIsModern ? 6 : 0)
                 .onHover{ hovering in (overStack, overStack2) = (-1, -1) }
                 VStack(alignment:.leading,spacing: 0) {
                     if allDevices.count < 1 && hiddenDevices.count < 1{
@@ -762,15 +757,7 @@ struct popover: View {
                         .onHover{ hovering in overStack = -1 }
                     }
                 }
-                .padding(.horizontal, 6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(Color.secondary, lineWidth: 1)
-                        .padding(.vertical, -1)
-                        .padding(.horizontal, 5)
-                        .opacity(0.23)
-                )
-                .offset(y: 2.5)
+                .modifier(DeviceListChrome())
                 if nearCast {
                     ForEach(allNearcast.indices, id: \.self) { index in
                         let devices = AirBatteryModel.ncGetAll(url: allNearcast[index])
@@ -785,7 +772,7 @@ struct popover: View {
                 }
                 if !fromDock {
                     Color.clear
-                        .frame(height: 8.5)
+                        .frame(height: popoverIsModern ? 10 : 8.5)
                         .onHover { hovering in
                             if hovering {
                                 overStack = -1
@@ -967,17 +954,37 @@ struct nearcastView: View {
             }
         }
         .onHover{ hovering in overStackNC = mainIndex }
-        .padding(.horizontal, 6)
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(Color.secondary, lineWidth: 1)
-                .padding(.vertical, -1)
-                .padding(.horizontal, 5)
-                .opacity(0.23)
-        )
-        .offset(y: 2.5)
+        .modifier(DeviceListChrome())
     }
 
+}
+
+private var popoverIsModern: Bool {
+    if #available(macOS 26.0, *) { return true }
+    return false
+}
+
+private struct DeviceListChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        if popoverIsModern {
+            let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+            content
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(Color.secondary.opacity(0.23), lineWidth: 1))
+                .padding(.horizontal, 10)
+        } else {
+            content
+                .padding(.horizontal, 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(Color.secondary, lineWidth: 1)
+                        .padding(.vertical, -1)
+                        .padding(.horizontal, 5)
+                        .opacity(0.23)
+                )
+                .offset(y: 2.5)
+        }
+    }
 }
 
 func openAboutPanel() {
@@ -995,21 +1002,4 @@ func openSettingPanel() {
     } else {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
     }
-}
-
-func findNSSplitVIew(view: NSView?) -> NSSplitView? {
-    var queue = [NSView]()
-    if let root = view {
-        queue.append(root)
-    }
-    while !queue.isEmpty {
-        let current = queue.removeFirst()
-        if current is NSSplitView {
-            return current as? NSSplitView
-        }
-        for subview in current.subviews {
-            queue.append(subview)
-        }
-    }
-    return nil
 }

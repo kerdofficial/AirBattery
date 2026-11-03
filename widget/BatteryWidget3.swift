@@ -46,14 +46,14 @@ struct SmallWidgetView2: View {
                         ForEach(0..<2) { index in
                             Circle()
                                 .stroke(lineWidth: lineWidth)
-                                .opacity(0.15)
+                                .widgetTrack()
                         }
                     }
                     HStack(spacing: 17) {
                         ForEach(0..<2) { index in
                             Circle()
                                 .stroke(lineWidth: lineWidth)
-                                .opacity(0.15)
+                                .widgetTrack()
                         }
                     }
                 }
@@ -65,27 +65,27 @@ struct SmallWidgetView2: View {
                                 Group {
                                     Circle()
                                         .stroke(lineWidth: lineWidth)
-                                        .opacity(0.15)
+                                        .widgetTrack()
                                     Circle()
                                         .trim(from: 0.0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 0.5)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
+                                        .widgetFill(Color(getPowerColor(item)))
                                         .rotationEffect(Angle(degrees: 270.0))
                                     Circle()
                                         .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.0005)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
-                                        .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
+                                        .widgetFill(Color(getPowerColor(item)))
+                                        .widgetCapShadow(lineWidth*0.76)
                                         .rotationEffect(Angle(degrees: 270.0))
                                         .clipShape( Circle().stroke(lineWidth: lineWidth) )
                                     Circle()
                                         .trim(from: item.batteryLevel > 50 ? 0.25 : 0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 1.0)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
+                                        .widgetFill(Color(getPowerColor(item)))
                                         .rotationEffect(Angle(degrees: 270.0))
                                     
                                     Image(getDeviceIcon(item))
-                                        .resizable()
+                                        .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                         .frame(width: 26, height: 26, alignment: .center)
                                     
@@ -100,7 +100,7 @@ struct SmallWidgetView2: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: 10, alignment: .center)
-                                            .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
+                                            .widgetFill(item.batteryLevel == 100 ? .myGreen : .primary)
                                             .offset(y:-29.5)
                                     }
                                 }.frame(width: 58, height: 58, alignment: .center)
@@ -114,27 +114,27 @@ struct SmallWidgetView2: View {
                                 Group {
                                     Circle()
                                         .stroke(lineWidth: lineWidth)
-                                        .opacity(0.15)
+                                        .widgetTrack()
                                     Circle()
                                         .trim(from: 0.0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 0.5)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
+                                        .widgetFill(Color(getPowerColor(item)))
                                         .rotationEffect(Angle(degrees: 270.0))
                                     Circle()
                                         .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.0005)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
-                                        .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
+                                        .widgetFill(Color(getPowerColor(item)))
+                                        .widgetCapShadow(lineWidth*0.76)
                                         .rotationEffect(Angle(degrees: 270.0))
                                         .clipShape( Circle().stroke(lineWidth: lineWidth) )
                                     Circle()
                                         .trim(from: item.batteryLevel > 50 ? 0.25 : 0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 1.0)))
                                         .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                        .foregroundColor(Color(getPowerColor(item)))
+                                        .widgetFill(Color(getPowerColor(item)))
                                         .rotationEffect(Angle(degrees: 270.0))
                                     
                                     Image(getDeviceIcon(item))
-                                        .resizable()
+                                        .resizable().iconAccentedRendering()
                                         .aspectRatio(contentMode: .fit)
                                         .frame(width: 26, height: 26, alignment: .center)
                                     
@@ -149,7 +149,7 @@ struct SmallWidgetView2: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: 10, alignment: .center)
-                                            .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
+                                            .widgetFill(item.batteryLevel == 100 ? .myGreen : .primary)
                                             .offset(y:-29.5)
                                     }
                                 }.frame(width: 58, height: 58, alignment: .center)
@@ -189,7 +189,7 @@ struct doubleBatteryWidgetEntryView2: View {
                                 .frame(width: 58, alignment: .center)
                         }
                     }
-                }.opacity(0.15)
+                }.widgetTrack()
             } else {
                 VStack(spacing: 17){
                     HStack(spacing: 23) {
@@ -199,27 +199,27 @@ struct doubleBatteryWidgetEntryView2: View {
                                     Group {
                                         Circle()
                                             .stroke(lineWidth: lineWidth)
-                                            .opacity(0.15)
+                                            .widgetTrack()
                                         Circle()
                                             .trim(from: 0.0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 0.5)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
+                                            .widgetFill(Color(getPowerColor(item)))
                                             .rotationEffect(Angle(degrees: 270.0))
                                         Circle()
                                             .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.0005)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                            .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
+                                            .widgetFill(Color(getPowerColor(item)))
+                                            .widgetCapShadow(lineWidth*0.76)
                                             .rotationEffect(Angle(degrees: 270.0))
                                             .clipShape( Circle().stroke(lineWidth: lineWidth) )
                                         Circle()
                                             .trim(from: item.batteryLevel > 50 ? 0.25 : 0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 1.0)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
+                                            .widgetFill(Color(getPowerColor(item)))
                                             .rotationEffect(Angle(degrees: 270.0))
                                         
                                         Image(getDeviceIcon(item))
-                                            .resizable()
+                                            .resizable().iconAccentedRendering()
                                             .aspectRatio(contentMode: .fit)
                                             .frame(width: 26, height: 26, alignment: .center)
                                         
@@ -234,7 +234,7 @@ struct doubleBatteryWidgetEntryView2: View {
                                                 .resizable()
                                                 .scaledToFit()
                                                 .frame(width: 10, alignment: .center)
-                                                .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
+                                                .widgetFill(item.batteryLevel == 100 ? .myGreen : .primary)
                                                 .offset(y:-29.5)
                                         }
                                     }.frame(width: 58, height: 58, alignment: .center)
@@ -249,27 +249,27 @@ struct doubleBatteryWidgetEntryView2: View {
                                     Group {
                                         Circle()
                                             .stroke(lineWidth: lineWidth)
-                                            .opacity(0.15)
+                                            .widgetTrack()
                                         Circle()
                                             .trim(from: 0.0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 0.5)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
+                                            .widgetFill(Color(getPowerColor(item)))
                                             .rotationEffect(Angle(degrees: 270.0))
                                         Circle()
                                             .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0, 1.0))-0.0005)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                            .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
+                                            .widgetFill(Color(getPowerColor(item)))
+                                            .widgetCapShadow(lineWidth*0.76)
                                             .rotationEffect(Angle(degrees: 270.0))
                                             .clipShape( Circle().stroke(lineWidth: lineWidth) )
                                         Circle()
                                             .trim(from: item.batteryLevel > 50 ? 0.25 : 0, to: CGFloat(min(Double(item.batteryLevel)/100.0, 1.0)))
                                             .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
+                                            .widgetFill(Color(getPowerColor(item)))
                                             .rotationEffect(Angle(degrees: 270.0))
                                         
                                         Image(getDeviceIcon(item))
-                                            .resizable()
+                                            .resizable().iconAccentedRendering()
                                             .aspectRatio(contentMode: .fit)
                                             .frame(width: 26, height: 26, alignment: .center)
                                         
@@ -284,7 +284,7 @@ struct doubleBatteryWidgetEntryView2: View {
                                                 .resizable()
                                                 .scaledToFit()
                                                 .frame(width: 10, alignment: .center)
-                                                .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
+                                                .widgetFill(item.batteryLevel == 100 ? .myGreen : .primary)
                                                 .offset(y:-29.5)
                                         }
                                     }.frame(width: 58, height: 58, alignment: .center)
@@ -306,7 +306,7 @@ struct batteryWidget3: Widget {
             batteryWidgetEntryView3(entry: entry)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
-                .widgetBackground(Color("WidgetBackground"))
+                .appWidgetBackground()
         }
         .configurationDisplayName("Batteries")
         .description("Displays battery usage for your devices without percentage")

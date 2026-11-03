@@ -41,21 +41,6 @@ struct AirBatteryApp: App {
     var body: some Scene {
         Settings {
             SettingsView()
-                .background(
-                    WindowAccessor(
-                        onWindowOpen: { w in
-                            if let w = w {
-                                //w.level = .floating
-                                w.titlebarSeparatorStyle = .none
-                                guard let nsSplitView = findNSSplitVIew(view: w.contentView),
-                                      let controller = nsSplitView.delegate as? NSSplitViewController else { return }
-                                controller.splitViewItems.first?.canCollapse = false
-                                controller.splitViewItems.first?.minimumThickness = 175
-                                controller.splitViewItems.first?.maximumThickness = 175
-                                w.orderFront(nil)
-                            }
-                        })
-                )
         }
     }
 }
@@ -77,6 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     @AppStorage("whitelistMode") var whitelistMode = false
     @AppStorage("iosBatteryStyle") var iosBatteryStyle = false
     @AppStorage("updateInterval") var updateInterval = 1
+    @AppStorage("widgetInterval") var widgetInterval = 0
     @AppStorage("carouselMode") var carouselMode = true
     
     //加载旧版设置项
@@ -86,6 +72,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     //var statusMenu: NSMenu = NSMenu()
     var menu: NSMenu = NSMenu()
     var startTime = Date()
+    var widgetRefreshTimer: Timer?
+    var lastWidgetReload = Date.distantPast
     let nc = NSWorkspace.shared.notificationCenter
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -248,6 +236,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             _ = AirBatteryModel.singleDeviceName()
             WidgetCenter.shared.reloadAllTimelines()
         }
+        startWidgetRefresh()
         
         //menu.delegate = self
         //statusMenu.delegate = self
@@ -301,6 +290,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
                 LogReader.shared.run(.bootstrap)
             }
+        }
+    }
+    
+    func startWidgetRefresh() {
+        let interval = TimeInterval(24 * max(1, updateInterval))
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.refreshWidgetData() }
+        timer.tolerance = 2
+        RunLoop.main.add(timer, forMode: .common)
+        widgetRefreshTimer = timer
+    }
+    
+    func refreshWidgetData() {
+        LogitechBattery.shared.refresh()
+        SPBluetoothDataModel.shared.refeshData(completion: { _ in
+            DispatchQueue.global(qos: .background).async {
+                MagicBattery.shared.scanDevices()
+                self.publishWidgetData()
+            }
+        }, error: {
+            self.publishWidgetData()
+        })
+    }
+    
+    func publishWidgetData() {
+        AirBatteryModel.writeData()
+        DispatchQueue.main.async {
+            guard self.widgetInterval != -1, Date().timeIntervalSince(self.lastWidgetReload) >= TimeInterval(60 * max(1, self.updateInterval)) else { return }
+            self.lastWidgetReload = Date()
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
     
