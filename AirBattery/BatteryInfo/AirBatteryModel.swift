@@ -108,7 +108,7 @@ class AirBatteryModel {
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let now = Double(Date().timeIntervalSince1970)
         let snapshot = Devices
-        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter { (now - $0.lastUpdate < Double(disappearTime * 60)) }
+        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter { disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60) }
         if !noFilter { list = list.filter { !blackList.contains($0.deviceName) && !$0.isHidden } }
         var newList: [Device] = list.filter({ $0.parentName == thisMac })
         for d in list {
@@ -194,7 +194,7 @@ class AirBatteryModel {
         let now = Double(Date().timeIntervalSince1970)
         var localDevices = getAll().map({ $0.deviceName })
         if fromWidget { localDevices = readData().map({ $0.deviceName }) }
-        var list = devices.filter{(now - $0.lastUpdate < Double(disappearTime * 60))}.filter({!localDevices.contains($0.deviceName)})
+        var list = devices.filter{ disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60) }.filter({!localDevices.contains($0.deviceName)})
         if let first = devices.first { if !list.contains(first) && list.count != 0 { list.insert(first, at: 0) }}
         if let first = list.first { if list.count == 1 && !first.hasBattery { return [] }}
         return list

@@ -323,7 +323,7 @@ struct DisplayView: View {
                     Text("Outside").tag("outside")
                 }.disabled(!intBattOnStatusBar)
                 SPicker("Remove Offline Device", selection: $disappearTime) {
-                    Text("Never").tag(UInt32.max)
+                    Text("Never").tag(-1)
                     Text("after 20min").tag(20)
                     Text("after 40min").tag(40)
                     Text("after 60min").tag(60)
