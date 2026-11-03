@@ -50,6 +50,16 @@ codesign --force --options runtime --timestamp --sign "$IDENTITY" \
     --preserve-metadata=entitlements,requirements "$APP"
 codesign --verify --deep --strict "$APP"
 
+CHECKED=0
+while IFS= read -r -d '' FILE; do
+    file -b "$FILE" | grep -q "Mach-O" || continue
+    INFO=$(codesign -dvvv "$FILE" 2>&1) || { echo "error: not signed: $FILE" >&2; exit 1; }
+    grep -q "^TeamIdentifier=$TEAM_ID$" <<<"$INFO" || { echo "error: wrong team: $FILE" >&2; exit 1; }
+    grep -q "^CodeDirectory.*flags=.*runtime" <<<"$INFO" || { echo "error: hardened runtime missing: $FILE" >&2; exit 1; }
+    CHECKED=$((CHECKED + 1))
+done < <(find "$APP" -type f -print0)
+echo "Verified team and hardened runtime on $CHECKED Mach-O files"
+
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 ZIP="$BUILD/AirBattery-$VERSION.zip"
 
