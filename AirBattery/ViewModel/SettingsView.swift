@@ -134,6 +134,7 @@ struct NearbilityView: View {
     @AppStorage("readPencil") var readPencil = false
     @AppStorage("readIDevice") var readIDevice = true
     @AppStorage("readBTHID") var readBTHID = true
+    @AppStorage("readLogitech") var readLogitech = true
     @AppStorage("updateInterval") var updateInterval = 1
     @AppStorage("twsMerge") var twsMerge = 5
     
@@ -145,6 +146,8 @@ struct NearbilityView: View {
                 SToggle("Discover iOS devices via Bluetooth", isOn: $ideviceOverBLE, tips: "Scan your iPhone and iPad (Cellular) via Bluetooth.")
                 Divider().opacity(0.5)
                 SToggle("Discover BT and BLE devices", isOn: $readBTDevice, tips: "Get the battery usage of some Bluetooth peripherals like mouse, keyboard, headphone or etc.\n\nIf some of your device is not shown, try enabling \"Discover more BT devices\" or \"Discover more BLE devices\"")
+                Divider().opacity(0.5)
+                SToggle("Discover Logitech receiver devices", isOn: $readLogitech, tips: "Get the battery usage of Logitech mice, keyboards and headsets connected through a Lightspeed, Unifying or Bolt receiver, and of the PRO X 2 LIGHTSPEED headset.")
                 Divider().opacity(0.5)
                 SToggle("Discover more BT devices", isOn: $readBTHID, tips: "Get the battery usage of more third-party Bluetooth devices\n\nBattery data will be updated when devices are reconnected to the Mac or the Mac wakes up.")
                 Divider().opacity(0.5)

@@ -29,6 +29,8 @@
 "Discover iOS devices via Network" = "通过局域网扫描 iOS 设备";
 "Discover iOS devices via Bluetooth" = "通过蓝牙扫描 iOS 设备";
 "Apple Pencil from your iPad" = "从 iPad 读取 Apple Pencil";
+"Discover Logitech receiver devices" = "扫描罗技接收器设备";
+"Get the battery usage of Logitech mice, keyboards and headsets connected through a Lightspeed, Unifying or Bolt receiver, and of the PRO X 2 LIGHTSPEED headset." = "获取通过 Lightspeed、Unifying 或 Bolt 接收器连接的罗技鼠标、键盘和耳机的电量，以及 PRO X 2 LIGHTSPEED 耳机的电量。";
 "Discover BT and BLE devices" = "扫描常规和低功耗蓝牙设备";
 "Discover more BT devices" = "扫描更多常规蓝牙设备";
 "Discover more BLE devices" = "扫描更多低功耗蓝牙设备";
