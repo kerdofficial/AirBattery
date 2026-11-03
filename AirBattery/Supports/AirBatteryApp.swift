@@ -26,6 +26,7 @@ let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var updateDelay = 1
 var keepAliveActivity: NSObjectProtocol? = nil
+let btConnectQueue = DispatchQueue(label: "com.kerdofficial.AirBattery.btconnect", qos: .background)
 
 @main
 struct AirBatteryApp: App {
@@ -350,10 +351,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     if AirBatteryModel.checkIfBlocked(name: name) { return }
                     //if let prefix = getFirstNCharacters(of: macAdd, count: 8) {
                         print("ℹ️ \(name) (\(macAdd)) connected")
-                        DispatchQueue.global(qos: .background).async {
+                        let isAppleDevice = device.isAppleDevice
+                        btConnectQueue.async {
                             usleep(2500000)
                             //if !appleMacPrefix.contains(prefix) {
-                            if !device.isAppleDevice {
+                            if !isAppleDevice {
                                 SPBluetoothDataModel.shared.refeshData { _ in
                                     LogReader.shared.run(.connect)
                                     MagicBattery.shared.getIOBTBattery()
