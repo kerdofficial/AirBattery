@@ -168,3 +168,5 @@
 "Copy Device ID" = "複製裝置 ID";
 "Device ID Copied" = "裝置 ID 已複製";
 "Device ID \"%@\" has been copied to the clipboard." = "裝置 ID \"%@\" 已複製到剪貼簿。";
+"Always Show Earbuds Separately" = "一律分開顯示左右耳機";
+"Show the left and right earbud as two devices even when their levels are close" = "即使左右耳機電量接近，也將它們顯示為兩個裝置";

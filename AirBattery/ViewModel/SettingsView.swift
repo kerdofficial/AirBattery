@@ -182,6 +182,7 @@ struct NearbilityView: View {
     @AppStorage("readLogitech") var readLogitech = true
     @AppStorage("updateInterval") var updateInterval = 1
     @AppStorage("twsMerge") var twsMerge = 5
+    @AppStorage("neverMergeTws") var neverMergeTws = false
     
     var body: some View {
         SForm {
@@ -210,7 +211,10 @@ struct NearbilityView: View {
                             .foregroundColor(.red)
                     }
                 }
-                SSteper("Earbud Merging Threshold", value: $twsMerge, min: 1, max: 99, tips: "Show earbuds as one device when their levels differ by less than this.")
+                SToggle("Always Show Earbuds Separately", isOn: $neverMergeTws, tips: "Show the left and right earbud as two devices even when their levels are close")
+                if !neverMergeTws {
+                    SSteper("Earbud Merging Threshold", value: $twsMerge, min: 1, max: 99, tips: "Show earbuds as one device when their levels differ by less than this.")
+                }
             }
         }
     }
