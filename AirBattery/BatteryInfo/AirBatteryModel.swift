@@ -205,7 +205,8 @@ class AirBatteryModel {
         return url
     }
     
-    static func writeData(){
+    @discardableResult
+    static func writeData() -> [Device] {
         //let showMac = ud.object(forKey: "showMacOnWidget") as? Bool ?? true
         let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
         
@@ -218,6 +219,7 @@ class AirBatteryModel {
         } catch {
             dataLog.error("Write data.json failed: \(error.localizedDescription, privacy: .public)")
         }
+        return devices
     }
     
     static func readData(url: URL = getJsonURL()) -> [Device]{

@@ -78,6 +78,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var alertCheckTimer: Timer?
     var iDeviceScanTimer: Timer?
     var lastWidgetReload = Date.distantPast
+    private var lastWidgetSignature: [String] = []
+    private var pendingWidgetSignature: [String] = []
+    private var widgetReloadWork: DispatchWorkItem?
+    private let widgetReloadMinGap: TimeInterval = 15
     let nc = NSWorkspace.shared.notificationCenter
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -336,12 +340,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     }
     
     func publishWidgetData() {
-        AirBatteryModel.writeData()
+        let signature = AirBatteryModel.writeData()
+            .map { "\($0.deviceName)|\($0.batteryLevel)|\($0.isCharging)|\($0.isCharged)" }
         DispatchQueue.main.async {
-            guard self.widgetInterval != -1, Date().timeIntervalSince(self.lastWidgetReload) >= TimeInterval(60 * max(1, self.updateInterval)) else { return }
-            self.lastWidgetReload = Date()
-            WidgetCenter.shared.reloadAllTimelines()
+            guard self.widgetInterval != -1, signature != self.lastWidgetSignature else { return }
+            self.pendingWidgetSignature = signature
+            self.reloadWidgetsIfChanged()
         }
+    }
+    
+    private func reloadWidgetsIfChanged() {
+        guard widgetReloadWork == nil else { return }
+        let wait = widgetReloadMinGap - Date().timeIntervalSince(lastWidgetReload)
+        if wait > 0 {
+            let work = DispatchWorkItem { [weak self] in
+                self?.widgetReloadWork = nil
+                self?.reloadWidgetsIfChanged()
+            }
+            widgetReloadWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
+            return
+        }
+        guard widgetInterval != -1, pendingWidgetSignature != lastWidgetSignature else { return }
+        lastWidgetSignature = pendingWidgetSignature
+        lastWidgetReload = Date()
+        WidgetCenter.shared.reloadAllTimelines()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
