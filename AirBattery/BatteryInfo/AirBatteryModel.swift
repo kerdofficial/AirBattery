@@ -200,12 +200,17 @@ class AirBatteryModel {
         return list
     }
     
+    static func baseDeviceName(_ name: String) -> String {
+        for suffix in [" (Case)".local, " (Case)", " 🄻🅁", " 🄻", " 🅁"] where name.hasSuffix(suffix) {
+            return String(name.dropLast(suffix.count))
+        }
+        return name
+    }
+    
     static func checkIfBlocked(name: String) -> Bool {
         let whitelistMode = ud.bool(forKey: "whitelistMode")
         let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        if (blockedItems.contains(name) && !whitelistMode) || (!blockedItems.contains(name) && whitelistMode) {
-            return true
-        }
-        return false
+        let listed = blockedItems.contains(name) || blockedItems.contains(baseDeviceName(name))
+        return listed != whitelistMode
     }
 }
