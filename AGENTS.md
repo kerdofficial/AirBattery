@@ -54,7 +54,7 @@ Before calling a change done, walk this list and say which entries applied:
 - **Localization.** English text is the key; add every new user-visible string to `AirBattery/zh-Hans.lproj/Localizable.strings` and `AirBattery/zh-Hant.lproj/Localizable.strings` and run `plutil -lint` on both.
 - **Reverse states.** A device that appears must also age out; HID connect needs removal handling; pin needs unpin; hide needs unhide; a source toggle turned off must stop its work.
 - **Debug log.** New failures and state changes get a `DebugLog` line (see "Debug logging"); verbose detail goes through `DebugLog.verbose`.
-- **Docs.** Update `README.md`, `README_zh.md` and this file when behavior they describe changes.
+- **Docs.** Update `README.md`, `TROUBLESHOOTING.md` and this file when behavior they describe changes.
 
 ## Debug logging
 
@@ -125,6 +125,6 @@ One app-level timer refreshes the periodic sources, writes `data.json` into the 
 
 ## Language and documentation
 
-- Write all tracked content in English, including documentation, comments, error messages and commit messages. Chinese text lives only in the zh-Hans and zh-Hant `.lproj` files and `README_zh.md`.
+- Write all tracked content in English, including documentation, comments, error messages and commit messages. Chinese text lives only in the zh-Hans and zh-Hant `.lproj` files.
 - Do not use emojis, em dashes, or en dashes in code or documentation. Use ordinary hyphens.
 - Keep guidance focused on capabilities and commands that exist.
