@@ -41,8 +41,8 @@ class LogitechBattery {
         return frame
     }()
 
-    let work = DispatchQueue(label: "com.lihaoyun6.AirBattery.logitech")
-    private let hidQueue = DispatchQueue(label: "com.lihaoyun6.AirBattery.logitech.hid")
+    let work = DispatchQueue(label: "com.kerdofficial.AirBattery.logitech")
+    private let hidQueue = DispatchQueue(label: "com.kerdofficial.AirBattery.logitech.hid")
     private var manager: IOHIDManager?
     private var channels: [IOHIDDevice: HIDChannel] = [:]
     private var slots: [String: SlotInfo] = [:]

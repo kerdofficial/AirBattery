@@ -214,7 +214,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         IOBluetoothDevice.register(forConnectNotifications: self, selector: #selector(deviceIsConnected(notification:fromDevice:)))
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURLEvent(_:replyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
         //if let window = NSApplication.shared.windows.first { window.close() }
-        launchAtLogin = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.lihaoyun6.AirBatteryHelper" }
+        launchAtLogin = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.kerdofficial.AirBatteryHelper" }
         print("⚙️ Launch AirBattery at login = \(launchAtLogin)")
         print("⚙️ Icon mode = \(showOn)")
         if ncGroupID != "" { if nearCast { netcastService.resume() } }
@@ -535,7 +535,7 @@ func refeshPinnedBar(unpin: String? = nil) {
 
 @discardableResult
 func ensureLoginItem(enabled: Bool) -> Bool {
-    let helperBundleIdentifier = "com.lihaoyun6.AirBatteryHelper"
+    let helperBundleIdentifier = "com.kerdofficial.AirBatteryHelper"
     if #available(macOS 13.0, *) {
         do {
             if enabled {

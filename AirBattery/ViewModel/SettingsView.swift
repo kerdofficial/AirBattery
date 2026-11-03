@@ -104,7 +104,7 @@ struct GeneralView: View {
             SGroupBox(label: "Startup") {
                 SToggle("Launch at Login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { newValue in
-                        SMLoginItemSetEnabled("com.lihaoyun6.AirBatteryHelper" as CFString, newValue)
+                        SMLoginItemSetEnabled("com.kerdofficial.AirBatteryHelper" as CFString, newValue)
                     }
                 SPicker("Show AirBattery", selection: $showOn) {
                     Text("Dock").tag("dock")

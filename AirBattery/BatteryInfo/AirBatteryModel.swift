@@ -60,7 +60,7 @@ class AirBatteryModel {
     static var lock = false
     static var Devices: [Device] = []
     static let machineType = ud.string(forKey: "machineType") ?? "Mac"
-    static let key = "com.lihaoyun6.AirBattery.widget"
+    static let key = "com.kerdofficial.AirBattery.widget"
     
     static func updateDevice(_ device: Device) {
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
