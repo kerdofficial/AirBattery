@@ -33,6 +33,9 @@
 		184ADF062DDB6C9F004791F0 /* Multipeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFA2DDB6C9F004791F0 /* Multipeer.swift */; };
 		184ADF072DDB6C9F004791F0 /* Sparkle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */; };
 		184ADF082DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
+		DB1061000000000000000002 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1061000000000000000001 /* DebugLog.swift */; };
+		DB1061000000000000000003 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1061000000000000000001 /* DebugLog.swift */; };
+		DB1061000000000000000004 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1061000000000000000001 /* DebugLog.swift */; };
 		184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */; };
 		184ADF0A2DDB6C9F004791F0 /* logReader.sh in Resources */ = {isa = PBXBuildFile; fileRef = 184ADEF92DDB6C9F004791F0 /* logReader.sh */; };
 		184ADF0B2DDB6C9F004791F0 /* Scriptable.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */; };
@@ -150,6 +153,7 @@
 		184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Scriptable.sdef; sourceTree = "<group>"; };
 		184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sparkle.swift; sourceTree = "<group>"; };
 		184ADEFD2DDB6C9F004791F0 /* Supports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supports.swift; sourceTree = "<group>"; };
+		DB1061000000000000000001 /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
 		184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
 		185AE80D2BA6041400FE1AA2 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000100000001 /* HIDPP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDPP.swift; sourceTree = "<group>"; };
@@ -302,6 +306,7 @@
 				184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */,
 				184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */,
 				184ADEFD2DDB6C9F004791F0 /* Supports.swift */,
+				DB1061000000000000000001 /* DebugLog.swift */,
 				A1B2C3D42F00000100000009 /* DeviceSymbols.swift */,
 				184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */,
 			);
@@ -559,6 +564,7 @@
 				184ADF062DDB6C9F004791F0 /* Multipeer.swift in Sources */,
 				184ADF072DDB6C9F004791F0 /* Sparkle.swift in Sources */,
 				184ADF082DDB6C9F004791F0 /* Supports.swift in Sources */,
+				DB1061000000000000000002 /* DebugLog.swift in Sources */,
 				184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
 				185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */,
@@ -578,6 +584,7 @@
 			files = (
 				184ADEE52DDB49C2004791F0 /* AirBatteryModel.swift in Sources */,
 				184ADF0D2DDB6C9F004791F0 /* Supports.swift in Sources */,
+				DB1061000000000000000003 /* DebugLog.swift in Sources */,
 				184ADEE62DDB49C7004791F0 /* InternalBattery.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -588,6 +595,7 @@
 			files = (
 				18892AA22B82F0880017377E /* AirBatteryModel.swift in Sources */,
 				184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */,
+				DB1061000000000000000004 /* DebugLog.swift in Sources */,
 				18EF7E632C141CB70065A9E1 /* BatteryWidget3.swift in Sources */,
 				18892AA32B82F09C0017377E /* InternalBattery.swift in Sources */,
 				18892A8E2B81F8320017377E /* widgetBundle.swift in Sources */,
