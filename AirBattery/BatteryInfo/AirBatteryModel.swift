@@ -87,6 +87,11 @@ class AirBatteryModel {
         }
     }
     
+    static func removeDevice(_ name: String) {
+        devicesLock.lock(); defer { devicesLock.unlock() }
+        _devices.removeAll { $0.deviceName == name }
+    }
+    
     static func unhideDevice(_ name: String) {
         devicesLock.lock(); defer { devicesLock.unlock() }
         for index in _devices.indices {
@@ -107,8 +112,9 @@ class AirBatteryModel {
         let disappearTime = (ud.object(forKey: "disappearTime") ?? 20) as! Int
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let now = Double(Date().timeIntervalSince1970)
+        let neverMergeTws = ud.bool(forKey: "neverMergeTws")
         let snapshot = Devices
-        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter { disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60) }
+        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter { (disappearTime == -1 || now - $0.lastUpdate < Double(disappearTime * 60)) && !(neverMergeTws && $0.deviceType == "ap_pod_all") }
         if !noFilter { list = list.filter { !blackList.contains($0.deviceName) && !$0.isHidden } }
         var newList: [Device] = list.filter({ $0.parentName == thisMac })
         for d in list {
