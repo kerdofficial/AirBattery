@@ -3,6 +3,22 @@
     <channel>
         <title>AirBattery</title>
         <item>
+            <title>Version 2.0.1</title>
+            <pubDate>Sun, 08 Nov 2026 22:51:33 +0100</pubDate>
+            <sparkle:version>201</sparkle:version>
+            <sparkle:shortVersionString>2.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/kerdofficial/AirBattery/releases/tag/v2.0.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<h1>AirBattery 2.0.1</h1>
+<ul>
+<li>Fixed Apple Watch battery discovery through the paired iPhone, including the watch's name.</li>
+<li>Fixed crashes when an Apple Watch battery query was interrupted or its iPhone became unavailable.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/kerdofficial/AirBattery/releases/download/v2.0.1/AirBattery-2.0.1.zip" sparkle:edSignature="dG8NSdkjiTgw9sJj/OdCC1Pyp6UfRvmFV7Lu1y3DELE25SO2SddtV8RA+eZyEB2l0wP9kqB2L+EnUn4sbMJUAQ==" length="9927998" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>Version 2.0.0</title>
             <pubDate>Tue, 03 Nov 2026 19:14:27 +0100</pubDate>
             <sparkle:version>200</sparkle:version>
