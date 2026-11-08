@@ -99,20 +99,38 @@ class IDeviceBattery {
                         readSucceeded = true
                         AirBatteryModel.updateDevice(Device(deviceID: id, deviceType: type, deviceName: deviceName, deviceModel: model, batteryLevel: levelValue, isCharging: isCharging ? 1 : 0, lastUpdate: lastUpdate, iconSymbol: DeviceSymbols.symbol(modelCode: model)))
                         if let watchInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/comptest", arguments: [id], timeout: 15) {
-                            let w = watchInfo.components(separatedBy: .newlines)
-                            if let watchID = w.filter({ $0.contains("Checking watch") }).first?.components(separatedBy: " ").last,
-                               let watchName = w.filter({ $0.contains("DeviceName") }).first?.components(separatedBy: ": ").last,
-                               let watchModel = w.filter({ $0.contains("ProductType") }).first?.components(separatedBy: ": ").last,
-                               let watchLevel = w.filter({ $0.contains("BatteryCurrentCapacity") }).first?.components(separatedBy: ": ").last,
-                               let watchLevelValue = Int(watchLevel),
-                               let watchCharging = w.filter({ $0.contains("BatteryIsCharging") }).first?.components(separatedBy: ": ").last,
-                               let watchIsCharging = Bool(watchCharging) {
-                                AirBatteryModel.updateDevice(Device(deviceID: watchID, deviceType: "Watch", deviceName: watchName, deviceModel: watchModel, batteryLevel: watchLevelValue, isCharging: watchIsCharging ? 1 : 0, parentName: deviceName, lastUpdate: lastUpdate, iconSymbol: DeviceSymbols.symbol(modelCode: watchModel)))
-                            }
+                            let watches = Self.parseWatches(watchInfo, parentName: deviceName, lastUpdate: lastUpdate)
+                            DebugLog.verbose(.idevice, "Watch read: \(watches.count) complete records")
+                            for watch in watches { AirBatteryModel.updateDevice(watch) }
+                        } else {
+                            DebugLog.verbose(.idevice, "Watch read returned no records")
                         }
                     }
                 }
             }
         }
     }
+
+    static func parseWatches(_ output: String, parentName: String, lastUpdate: Double) -> [Device] {
+        output.components(separatedBy: "Checking watch ").dropFirst().compactMap { record in
+            let lines = record.components(separatedBy: .newlines)
+            guard let id = lines.first, !id.isEmpty else { return nil }
+            var fields: [String: String] = [:]
+            for line in lines.dropFirst() {
+                guard let separator = line.range(of: ": ") else { continue }
+                fields[String(line[..<separator.lowerBound])] = String(line[separator.upperBound...])
+            }
+            guard let name = fields["DeviceName"], !name.isEmpty,
+                  let model = fields["ProductType"], !model.isEmpty,
+                  let level = fields["BatteryCurrentCapacity"].flatMap(Int.init), (0...100).contains(level),
+                  let charging = fields["BatteryIsCharging"].flatMap(Bool.init) else {
+                DebugLog.verbose(.idevice, "Watch record incomplete or invalid")
+                return nil
+            }
+            return Device(deviceID: id, deviceType: "Watch", deviceName: name, deviceModel: model,
+                          batteryLevel: level, isCharging: charging ? 1 : 0, parentName: parentName,
+                          lastUpdate: lastUpdate, iconSymbol: DeviceSymbols.symbol(modelCode: model))
+        }
+    }
+
 }

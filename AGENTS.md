@@ -72,6 +72,7 @@ Before calling a change done, walk this list and say which entries applied:
 - Signed, notarized release build: `scripts/build-release.sh` with `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` set; it also checks the team and hardened runtime of every Mach-O file. Output goes to `build/` (ignored). `scripts/publish-release.sh` ships it (see Releasing).
 - Ad-hoc signed builds cannot write into the widget container and fail Sparkle library validation from `/Applications`; widget behavior can only be checked with a properly signed build.
 - After replacing the installed app, an already running `AirBatteryWidgetExtension` process keeps serving the old code (data still updates, code changes do not). Check `ps` for extension processes started before the install or running from a derived data path, and stop those exact PIDs. Delete `Build/Products` of temporary derived data folders after compile checks so their extensions cannot be picked up.
+- `scripts/build-watch-helper.sh` rebuilds the universal `comptest` from its tracked C source using the bundled libraries and external libimobiledevice 1.4.0 / libplist 2.7.0 headers (`IMOBILEDEVICE_SOURCE`, `PLIST_SOURCE`). It does not sign, notarize or install the app.
 - `AirBattery/libimobiledevice/` holds prebuilt universal binaries and dylibs copied into the app as resources. Rebuild them from source outside the repo, keep `@executable_path/../lib/` install names and `-mmacosx-version-min` at or below the app minimum. `scripts/build-release.sh` signs them for notarization.
 - Never deploy, publish packages, push tags, or create releases unless asked.
 
@@ -85,7 +86,7 @@ Before calling a change done, walk this list and say which entries applied:
 
 ## Verifying
 
-- There is no automated test suite. Smallest proof: build every scheme your change touches (`AirBattery` and `AirBatteryWidgetExtension` for shared files such as `AirBatteryModel.swift` and `Supports.swift`), plus `plutil -lint` for changed `.strings` files.
+- Apple Watch regression checks: `scripts/test-watch.sh` compiles the production source and model against isolated tool, preference and filesystem adapters. With `IMOBILEDEVICE_SOURCE` (1.4.0) and `PLIST_SOURCE` (2.7.0) set, it also tests the C helper under AddressSanitizer. Smallest compile proof: build every scheme your change touches (`AirBattery` and `AirBatteryWidgetExtension` for shared files such as `AirBatteryModel.swift` and `Supports.swift`), plus `plutil -lint` for changed `.strings` files.
 - UI changes: run the app and capture the affected window with `screencapture -l <window id>`; compare against the native macOS look in both light and dark appearance when relevant.
 - Source changes: confirm the device reaches `data.json` in the widget container, not only the popover.
 - Wait for observable events or persisted state. Do not use arbitrary sleeps; keep bounded timeouts as failure guards.

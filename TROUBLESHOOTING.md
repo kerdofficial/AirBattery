@@ -14,6 +14,8 @@ Turn on **Discover iOS devices via Bluetooth** in **Settings > Nearbility** and 
 
 No. When AirBattery finds the paired iPhone over the network or USB, it also reads the battery of the Apple Watch paired with it. An iPhone found only over Bluetooth cannot report its watch.
 
+The watch reader has a bounded timeout and skips incomplete responses. If the watch is missing while its iPhone is visible, let the next scan retry. Include an exported diagnostic log when reporting a persistent failure; verbose logging records whether complete watch records were received without including their names or identifiers.
+
 ## Why does a device name start with ⚠︎?
 
 The device has not reported a new battery level for more than 10 minutes. It may be off, asleep or out of range. Devices that stay silent are removed after the time set in **Settings > Menu Bar & Dock > Remove offline devices**.

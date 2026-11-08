@@ -69,7 +69,7 @@ Something not showing up? See [Troubleshooting](./TROUBLESHOOTING.md).
 | --- | --- | --- |
 | [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice), [libplist](https://github.com/libimobiledevice/libplist), [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd), [libimobiledevice-glue](https://github.com/libimobiledevice/libimobiledevice-glue) | LGPL-2.1 | Bundled tools and libraries for iOS devices |
 | [OpenSSL](https://github.com/openssl/openssl) | Apache-2.0 | Bundled library used by libimobiledevice |
-| [comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) | - | Bundled tool for Apple Watch batteries |
+| [comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) | - | Protocol reference for our bundled Apple Watch reader ([source](AirBattery/libimobiledevice/bin/comptest.c)) |
 | [Sparkle](https://github.com/sparkle-project/Sparkle) | MIT | App updates |
 | [MultipeerKit](https://github.com/insidegui/MultipeerKit) | BSD-2-Clause | Nearcast |
 | [Swift Argument Parser](https://github.com/apple/swift-argument-parser) | Apache-2.0 | Command line tool |
